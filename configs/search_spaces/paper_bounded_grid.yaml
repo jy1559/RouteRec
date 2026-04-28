@@ -1,0 +1,55 @@
+shared:
+  weight_decay: [5.0e-7, 1.0e-6, 1.0e-5, 5.0e-5, 1.0e-4, 1.5e-4]
+  max_history_length: [10, 20, 30, 50]
+  width_embedding: [64, 96, 112, 128, 160, 192]
+  inner_width: [128, 192, 224, 256, 320, 384]
+  layers: [1, 2, 3, 4]
+  heads: [1, 2, 4, 8]
+  hidden_dropout: [0.10, 0.12, 0.13, 0.15, 0.18]
+  recurrent_dropout: [0.10, 0.15, 0.20, 0.25, 0.30]
+  attention_dropout: [0.06, 0.08, 0.10, 0.12, 0.15, 0.20]
+baseline_additions:
+  TiSASRec:
+    time_span: [64, 128, 256, 384, 512]
+  GRU4Rec:
+    dropout_prob: [0.10, 0.15, 0.20, 0.25, 0.30]
+  DuoRec:
+    tau: [0.16, 0.18, 0.20, 0.22, 0.24]
+    contrastive_weight: [0.02, 0.03, 0.04, 0.05, 0.06]
+    semantic_weight: [0.0, 0.04, 0.05, 0.08, 0.10]
+  FEARec:
+    tau: [0.16, 0.18, 0.20, 0.22, 0.24]
+    contrastive_weight: [0.02, 0.03, 0.04, 0.05, 0.06]
+    semantic_weight: [0.04, 0.05, 0.08, 0.10, 0.12]
+  BSARec:
+    alpha: [0.35, 0.50, 0.55, 0.70]
+    c: [2, 3, 5, 7]
+  DIFSR:
+    attribute_hidden_size: [96, 128, 160, 192]
+    lambda_attr: [0.08, 0.09, 0.10, 0.12, 0.14]
+    fusion_type: [gate, sum, concat]
+  FDSA:
+    attribute_hidden_size: [96, 128, 160, 192]
+    lambda_attr: [0.09, 0.10, 0.12, 0.14, 0.15]
+  FAME:
+    num_experts: [2, 3, 4, 5, 6]
+routerec_additions:
+  backbone_depth: [1, 2, 3]
+  dropout: [0.10, 0.12, 0.14, 0.15, 0.16, 0.17, 0.18, 0.19, 0.20, 0.22, 0.24]
+  weight_decay: [3.125e-7, 5.0e-7, 6.0e-7, 1.0e-6, 1.5e-6, 2.0e-6, 5.0e-6]
+  expert_scale: [2, 3, 4]
+  expert_scale_kuairec: [2, 3, 4, 5]
+  router_width: [32, 64, 96, 128]
+  feature_dropout: [0.0, 0.03, 0.05, 0.10]
+  attention_dropout: [0.05, 0.06, 0.08, 0.10, 0.12]
+  route_consistency_lambda: [0.0, 2.5e-4, 5.0e-4, 8.0e-4, 1.2e-3]
+  z_loss_lambda: [0.0, 5.0e-5, 1.0e-4, 2.0e-4]
+  cue_bank_size: [10, 12, 16, 24]
+dataset_learning_rate_intervals:
+  amazon_beauty: [1.5e-4, 2.0e-3]
+  beauty: [1.5e-4, 2.0e-3]
+  foursquare: [1.5e-4, 2.2e-3]
+  KuaiRecLargeStrictPosV2_0.2: [3.0e-4, 5.0e-3]
+  lastfm0.03: [8.0e-5, 1.2e-3]
+  movielens1m: [1.5e-4, 2.2e-3]
+  retail_rocket: [1.5e-4, 2.2e-3]

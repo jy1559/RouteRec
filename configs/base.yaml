@@ -1,0 +1,18 @@
+project:
+  name: RouteRec
+  paper_title: Behavior-Guided Sparse Routing for Sequential Recommendation
+
+experiment:
+  backend: recbole
+  model: RouteRec
+  dataset: null
+  seed: 42
+  eval_mode: session
+
+logging:
+  use_wandb: false
+  save_checkpoints: false
+
+release:
+  include_logs: false
+  include_raw_outputs: false
