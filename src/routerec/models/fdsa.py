@@ -104,7 +104,31 @@ class FDSA(SequentialRecommender):
             raise NotImplementedError("loss_type must be one of ['BPR', 'CE']")
 
         self.apply(self._init_weights)
-        self.other_parameter_name = ["feature_embed_layer"]
+        # ``feature_embed_layer`` is an nn.Module and is already fully covered
+        # by state_dict. Registering it as an additional pickled parameter also
+        # serializes its dataset reference (including converted interactions),
+        # producing hundreds-of-MiB checkpoints on ML-1M and potentially tens
+        # of GiB on full LastFM. Standard state_dict load/resume is sufficient.
+        self.other_parameter_name = []
+
+    def load_other_parameter(self, parameters):
+        """Load legacy checkpoints without restoring their embedded dataset.
+
+        RecBole 1.2.1 calls this after ``load_state_dict``. Older RouteRec FDSA
+        checkpoints contain a pickled ``feature_embed_layer`` whose dataset is
+        both very large and tied to the old token mapping/device. The learned
+        embedding weights are already in ``state_dict``; retaining the freshly
+        constructed layer preserves the current dataset identity while still
+        accepting old checkpoints.
+        """
+        if parameters is None:
+            return
+        safe_parameters = {
+            key: value
+            for key, value in parameters.items()
+            if key != "feature_embed_layer"
+        }
+        return super().load_other_parameter(safe_parameters)
 
     def _init_weights(self, module):
         if isinstance(module, (nn.Linear, nn.Embedding)):

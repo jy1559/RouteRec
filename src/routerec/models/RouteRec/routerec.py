@@ -256,6 +256,7 @@ class RouteRec(RouteRecN):
             resolver.get("stage_router_source", None),
             default_value="both",
         )
+        self.reviewer_control_mode = str(resolver.get("reviewer_control_mode", "full")).lower().strip()
         self.stage_feature_injection = _parse_stage_str_map(
             resolver.get("stage_feature_injection", None),
             default_value="none",
@@ -465,6 +466,7 @@ class RouteRec(RouteRecN):
             stage_router_primitives=self.stage_router_primitives,
             intra_group_bias_mode=self.intra_group_bias_mode,
             intra_group_bias_scale=self.intra_group_bias_scale,
+            reviewer_control_mode=self.reviewer_control_mode,
             mid_router_temperature=self.mid_router_temperature,
             micro_router_temperature=self.micro_router_temperature,
             dense_hidden_scale=self.dense_hidden_scale,
@@ -505,6 +507,7 @@ class RouteRec(RouteRecN):
             "stage_compute_mode": dict(self.stage_compute_mode),
             "stage_router_mode": dict(self.stage_router_mode),
             "stage_router_source": dict(self.stage_router_source),
+            "reviewer_control_mode": self.reviewer_control_mode,
             "stage_feature_injection": dict(self.stage_feature_injection),
             "stage_router_wrapper": dict(self.stage_router_wrapper),
             "stage_router_primitives": dict(self.stage_router_primitives),
@@ -1267,7 +1270,8 @@ class RouteRec(RouteRecN):
         }
         return seq_output, aux_data
 
-    def calculate_loss(self, interaction):
+    def calculate_loss_components(self, interaction):
+        """Expose CE and router auxiliaries without changing the training loss."""
         item_seq, item_seq_len, routing_item_seq_len = self._resolve_forward_lengths(interaction)
         pos_items = interaction[self.POS_ITEM_ID]
 
@@ -1378,7 +1382,15 @@ class RouteRec(RouteRecN):
                 item_seq_len=item_seq_len,
             )
 
-        return ce_loss + aux_loss
+        return {
+            "ce": ce_loss,
+            "router_aux": aux_loss,
+            "sequence_output": seq_output,
+            "total": ce_loss + aux_loss,
+        }
+
+    def calculate_loss(self, interaction):
+        return self.calculate_loss_components(interaction)["total"]
 
     def predict(self, interaction):
         item_seq, item_seq_len, routing_item_seq_len = self._resolve_forward_lengths(interaction)

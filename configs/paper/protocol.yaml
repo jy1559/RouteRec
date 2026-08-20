@@ -1,0 +1,35 @@
+run: {}
+
+data:
+  root: Datasets/release
+  feature_mode: full_v4
+  user_id_field: session_id
+  item_id_field: item_id
+  time_field: timestamp
+  history_input_mode: all_prefixes_train_last_target_valid_test
+  split:
+    strategy: frozen_benchmark
+    benchmark_filename: [train, valid, test]
+    group_by: user
+    order: TO
+  candidates:
+    policy: train_seen
+    exclude_unseen_targets: true
+    mask_non_train_items: true
+
+evaluation:
+  metrics: [HR@10, NDCG@10, MRR@10]
+  selection:
+    type: mean
+    metrics: [HR@10, NDCG@10, MRR@10]
+  allow_test: false
+  mode: full
+  export_predictions: false
+
+provenance:
+  paper_contract_id: cikm26-routerec-a12-v1
+  source_id: auto
+  identity_status: provisional
+  hypothesis: neutral paper-contract center
+  anchor_status: designed_center_not_result
+  notes: No metric or winning-configuration claim is encoded in this file.

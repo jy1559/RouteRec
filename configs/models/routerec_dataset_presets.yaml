@@ -7,14 +7,29 @@ KuaiRecLargeStrictPosV2_0.2:
   d_router_hidden: 64
   d_feat_emb: 20
   hidden_dropout_prob: 0.12
-  fixed_hidden_dropout_prob: 0.15
   attn_dropout_prob: 0.07
   learning_rate: 5.476e-4
   weight_decay: 1.6e-6
   route_consistency_lambda: 1.2e-3
   z_loss_lambda: 1.0e-4
   stage_feature_dropout_prob: 0.03
-amazon_beauty:
+kuairec_full_core5_v1:
+  # Weak cross-identity initialization prior only; retune on this release.
+  MAX_ITEM_LIST_LENGTH: 20
+  embedding_size: 224
+  hidden_size: 224
+  d_ff: 448
+  d_expert_hidden: 224
+  d_router_hidden: 64
+  d_feat_emb: 20
+  hidden_dropout_prob: 0.12
+  attn_dropout_prob: 0.07
+  learning_rate: 5.476e-4
+  weight_decay: 1.6e-6
+  route_consistency_lambda: 1.2e-3
+  z_loss_lambda: 1.0e-4
+  stage_feature_dropout_prob: 0.03
+beauty:
   MAX_ITEM_LIST_LENGTH: 20
   embedding_size: 192
   hidden_size: 192
@@ -23,7 +38,6 @@ amazon_beauty:
   d_router_hidden: 32
   d_feat_emb: 16
   hidden_dropout_prob: 0.18
-  fixed_hidden_dropout_prob: 0.20
   attn_dropout_prob: 0.12
   learning_rate: 5.672e-4
   weight_decay: 5.0e-7
@@ -39,7 +53,6 @@ foursquare:
   d_router_hidden: 32
   d_feat_emb: 8
   hidden_dropout_prob: 0.12
-  fixed_hidden_dropout_prob: 0.15
   attn_dropout_prob: 0.05
   learning_rate: 9.5164e-4
   weight_decay: 1.2e-6
@@ -55,7 +68,22 @@ lastfm0.03:
   d_router_hidden: 96
   d_feat_emb: 12
   hidden_dropout_prob: 0.12
-  fixed_hidden_dropout_prob: 0.14
+  attn_dropout_prob: 0.12
+  learning_rate: 4.983e-4
+  weight_decay: 5.0e-7
+  route_consistency_lambda: 2.5e-4
+  z_loss_lambda: 1.0e-4
+  stage_feature_dropout_prob: 0.03
+lastfm_full_core5_v1:
+  # Weak cross-identity initialization prior only; retune on this release.
+  MAX_ITEM_LIST_LENGTH: 30
+  embedding_size: 224
+  hidden_size: 224
+  d_ff: 448
+  d_expert_hidden: 224
+  d_router_hidden: 96
+  d_feat_emb: 12
+  hidden_dropout_prob: 0.12
   attn_dropout_prob: 0.12
   learning_rate: 4.983e-4
   weight_decay: 5.0e-7
@@ -63,7 +91,7 @@ lastfm0.03:
   z_loss_lambda: 1.0e-4
   stage_feature_dropout_prob: 0.03
 movielens1m:
-  MAX_ITEM_LIST_LENGTH: 10
+  MAX_ITEM_LIST_LENGTH: 50
   embedding_size: 128
   hidden_size: 128
   d_ff: 256
@@ -71,7 +99,6 @@ movielens1m:
   d_router_hidden: 96
   d_feat_emb: 16
   hidden_dropout_prob: 0.16
-  fixed_hidden_dropout_prob: 0.15
   attn_dropout_prob: 0.07
   learning_rate: 1.29037e-3
   weight_decay: 1.0e-6
@@ -87,7 +114,6 @@ retail_rocket:
   d_router_hidden: 64
   d_feat_emb: 8
   hidden_dropout_prob: 0.16
-  fixed_hidden_dropout_prob: 0.14
   attn_dropout_prob: 0.12
   learning_rate: 5.6966e-4
   weight_decay: 1.0e-6

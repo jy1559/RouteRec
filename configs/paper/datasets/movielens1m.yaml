@@ -1,0 +1,29 @@
+trainer:
+  epochs: 20
+  train_batch_size: 2048
+  eval_batch_size: 4096
+
+resources:
+  timeout_minutes: 180
+
+model:
+  params:
+    MAX_ITEM_LIST_LENGTH: 50
+    embedding_size: 128
+    hidden_size: 128
+    num_heads: 8
+    d_ff: 256
+    d_expert_hidden: 128
+    d_router_hidden: 96
+    d_feat_emb: 16
+    expert_scale: 3
+    hidden_dropout_prob: 0.16
+    attn_dropout_prob: 0.07
+    route_consistency_lambda: 1.2e-3
+    z_loss_lambda: 4.0e-4
+    stage_feature_dropout_prob: {macro: 0.03, mid: 0.03, micro: 0.03}
+
+provenance:
+  hypothesis: recovered MovieLens-1M capacity center to be challenged after optimizer promotion
+  anchor_status: recovered_center_hypothesis
+  data_note: Frozen movielens1m session reconstruction.

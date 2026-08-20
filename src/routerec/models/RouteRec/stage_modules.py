@@ -24,6 +24,12 @@ from .router_wrapper import (
     normalize_wrapper_name,
     required_primitives_for_wrapper,
 )
+from .reviewer_controls import (
+    controlled_feature_input,
+    controlled_hidden_input,
+    freeze_random_router_path,
+    normalize_control_mode,
+)
 
 
 _STAGE_NAMES = ("macro", "mid", "micro")
@@ -129,6 +135,7 @@ class StageRuntimeConfigN3:
     stage_feature_dropout_scope: str
     intra_group_bias_mode: str = "none"
     intra_group_bias_scale: float = 0.0
+    reviewer_control_mode: str = "full"
 
 
 class SASRecStyleAttentionBlock(nn.Module):
@@ -314,6 +321,7 @@ class N3StageBlock(nn.Module):
         self.stage_compute_mode = str(cfg.stage_compute_mode).lower().strip()
         self.stage_router_mode = str(cfg.stage_router_mode).lower().strip()
         self.stage_router_source = str(cfg.stage_router_source).lower().strip()
+        self.reviewer_control_mode = normalize_control_mode(cfg.reviewer_control_mode)
         self.stage_feature_injection = str(cfg.stage_feature_injection).lower().strip()
         self.routing_granularity = str(cfg.routing_granularity).lower().strip()
         self.session_pooling = str(cfg.session_pooling).lower().strip()
@@ -333,6 +341,13 @@ class N3StageBlock(nn.Module):
         self.current_alpha_scale = 1.0
         self.stage_family_dropout_prob = min(max(float(cfg.stage_family_dropout_prob), 0.0), 0.999999)
         self.stage_feature_dropout_prob = min(max(float(cfg.stage_feature_dropout_prob), 0.0), 0.999999)
+        if self.reviewer_control_mode == "random_frozen":
+            # These functional masks sit outside the nn.Dropout modules frozen
+            # below, but still feed the random router. Disable them so the
+            # frozen routing path has no hidden stochastic dropout. Assignments
+            # remain input-dependent by design.
+            self.stage_family_dropout_prob = 0.0
+            self.stage_feature_dropout_prob = 0.0
         self.stage_feature_dropout_scope = str(cfg.stage_feature_dropout_scope or "token").lower().strip()
         self.intra_group_bias_mode = str(cfg.intra_group_bias_mode or "none").lower().strip()
         if self.intra_group_bias_mode not in _VALID_INTRA_GROUP_BIAS:
@@ -407,6 +422,15 @@ class N3StageBlock(nn.Module):
                 if name in self.stage_col2local
             ]
             self.group_feature_local_indices.append(local_idx)
+        self._group_feature_index_buffer_names = []
+        for group_index, local_idx in enumerate(self.group_feature_local_indices):
+            buffer_name = f"_group_feature_idx_{group_index}"
+            self.register_buffer(
+                buffer_name,
+                torch.tensor(local_idx, dtype=torch.long),
+                persistent=False,
+            )
+            self._group_feature_index_buffer_names.append(buffer_name)
         self.feature_encoder = _StageFeatureEncoder(
             d_in=len(self.stage_feature_names),
             d_out=int(cfg.d_feat_emb),
@@ -522,6 +546,20 @@ class N3StageBlock(nn.Module):
                         n_groups=self.n_base_groups,
                     )
                 self.router_wrapper = build_wrapper_module(self.stage_router_wrapper)
+                if self.reviewer_control_mode == "random_frozen":
+                    freeze_random_router_path(
+                        (
+                            self.feature_encoder,
+                            self.group_feature_projections,
+                            self.rule_router,
+                            self.router_a,
+                            self.router_b,
+                            self.router_c,
+                            self.router_d,
+                            self.router_e,
+                            self.router_wrapper,
+                        )
+                    )
 
     def _router_input_dim(self, source: str) -> int:
         key = str(source or "both").lower().strip()
@@ -872,8 +910,16 @@ class N3StageBlock(nn.Module):
             if self.router_wrapper is None:
                 raise RuntimeError(f"wrapper router not initialized for stage {self.stage_name}.")
 
-            group_feature_context = self._build_group_feature_context(stage_raw_feat)
-            hidden_group = hidden.unsqueeze(-2).expand(-1, -1, self.n_base_groups, -1)
+            encoded_for_router = controlled_feature_input(encoded_feat, mode=self.reviewer_control_mode)
+            raw_for_router = controlled_feature_input(stage_raw_feat, mode=self.reviewer_control_mode)
+            if self.reviewer_control_mode == "hidden_only_matched":
+                group_feature_context = stage_raw_feat.new_zeros(
+                    *stage_raw_feat.shape[:-1], self.n_base_groups, self.d_feat_emb
+                )
+            else:
+                group_feature_context = self._build_group_feature_context(raw_for_router)
+            hidden_for_router = controlled_hidden_input(hidden, mode=self.reviewer_control_mode)
+            hidden_group = hidden_for_router.unsqueeze(-2).expand(-1, -1, self.n_base_groups, -1)
             primitive_outputs: Dict[str, Dict[str, torch.Tensor | float | Optional[int] | str]] = {}
 
             if "a_joint" in self.required_primitives:
@@ -882,8 +928,8 @@ class N3StageBlock(nn.Module):
                 spec_a = self.primitive_specs["a_joint"]
                 a_input = self._compose_input_from_source(
                     source=spec_a.normalized_source(),
-                    hidden=hidden,
-                    feature=encoded_feat,
+                    hidden=hidden_for_router,
+                    feature=encoded_for_router,
                 )
                 primitive_outputs["a_joint"] = self.router_a(a_input, spec_a)
 
@@ -893,8 +939,8 @@ class N3StageBlock(nn.Module):
                 spec_b = self.primitive_specs["b_group"]
                 b_input = self._compose_input_from_source(
                     source=spec_b.normalized_source(),
-                    hidden=hidden,
-                    feature=encoded_feat,
+                    hidden=hidden_for_router,
+                    feature=encoded_for_router,
                 )
                 primitive_outputs["b_group"] = self.router_b(b_input, spec_b)
 
@@ -904,8 +950,8 @@ class N3StageBlock(nn.Module):
                 spec_c = self.primitive_specs["c_shared"]
                 c_input = self._compose_input_from_source(
                     source=spec_c.normalized_source(),
-                    hidden=hidden,
-                    feature=encoded_feat,
+                    hidden=hidden_for_router,
+                    feature=encoded_for_router,
                 )
                 primitive_outputs["c_shared"] = self.router_c(c_input, spec_c)
 
@@ -952,11 +998,11 @@ class N3StageBlock(nn.Module):
             aux["wrapper_name"] = str(wrapper_out.get("name", self.stage_router_wrapper))
             aux["wrapper_internal"] = dict(wrapper_out.get("wrapper_internal", {}) or {})
             aux["primitive_outputs"] = primitive_outputs
-            if stage_raw_feat.size(-1) > 0:
+            if raw_for_router.size(-1) > 0:
                 rule_input = (
-                    self._pool_sequence(stage_raw_feat, session_valid_mask, session_item_seq_len)
+                    self._pool_sequence(raw_for_router, session_valid_mask, session_item_seq_len)
                     if self.routing_granularity == "session"
-                    else stage_raw_feat
+                    else raw_for_router
                 )
                 group_prior = self._compute_group_feature_prior(rule_input)
                 aux["group_prior"] = group_prior
@@ -996,6 +1042,10 @@ class N3StageBlock(nn.Module):
         return weights, scaled_logits, aux
 
     def _aggregate_group_weights(self, gate_weights: torch.Tensor) -> torch.Tensor:
+        if self.n_experts == self.n_base_groups * self.experts_per_group:
+            return gate_weights.reshape(
+                *gate_weights.shape[:-1], self.n_base_groups, self.experts_per_group
+            ).sum(dim=-1)
         pieces = []
         for group_idx in range(self.n_base_groups):
             mask = self.expert_group_idx[: self.n_experts] == group_idx
@@ -1009,9 +1059,9 @@ class N3StageBlock(nn.Module):
         if stage_raw_feat.size(-1) <= 0 or self.n_base_groups <= 0:
             return stage_raw_feat.new_zeros(*stage_raw_feat.shape[:-1], max(self.n_base_groups, 1))
         scores = []
-        for local_idx in self.group_feature_local_indices:
-            if local_idx:
-                idx = torch.tensor(local_idx, dtype=torch.long, device=stage_raw_feat.device)
+        for buffer_name in self._group_feature_index_buffer_names:
+            idx = getattr(self, buffer_name)
+            if idx.numel() > 0:
                 score = stage_raw_feat.index_select(-1, idx).abs().mean(dim=-1)
             else:
                 score = stage_raw_feat.new_zeros(stage_raw_feat.shape[:-1])
@@ -1024,11 +1074,10 @@ class N3StageBlock(nn.Module):
     def _expand_group_tensor_to_experts(self, group_tensor: torch.Tensor) -> torch.Tensor:
         if group_tensor.size(-1) <= 0 or self.n_experts <= 0:
             return group_tensor.new_zeros(*group_tensor.shape[:-1], 0)
-        pieces = []
-        for expert_idx in range(self.n_experts):
-            group_idx = int(self.expert_group_idx[expert_idx].item())
-            pieces.append(group_tensor[..., group_idx : group_idx + 1])
-        return torch.cat(pieces, dim=-1)
+        return group_tensor.index_select(
+            -1,
+            self.expert_group_idx[: self.n_experts].to(device=group_tensor.device),
+        )
 
     def _compute_intra_group_bias_logits(self, stage_raw_feat: torch.Tensor) -> torch.Tensor:
         if self.intra_group_bias_mode == "none" or self.intra_group_bias_scale <= 0:

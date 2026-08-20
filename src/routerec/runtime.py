@@ -16,6 +16,7 @@ _MODEL_SPECS: dict[str, tuple[str, str]] = {
     "BSARec": ("routerec.models.bsarec", "BSARec"),
     "DIFSR": ("routerec.models.difsr", "DIFSR"),
     "DuoRec": ("routerec.models.duorec", "DuoRec"),
+    "DuoRecRouteRec": ("routerec.models.duorec_routerec", "DuoRecRouteRec"),
     "FAME": ("routerec.models.fame", "FAME"),
     "FDSA": ("routerec.models.fdsa", "FDSA"),
     "FEARec": ("routerec.models.fearec", "FEARec"),
@@ -53,12 +54,16 @@ def _apply_numpy_compat_shims() -> None:
 
 
 def enable_custom_model_resolver() -> None:
-    """Patch RecBole model resolver so bundled models can be loaded by name."""
+    """Install RouteRec's model resolver and frozen-session data support."""
     global _PATCHED
     if _PATCHED:
         return
 
     _apply_numpy_compat_shims()
+
+    from .session_data import install_frozen_session_split_patch
+
+    install_frozen_session_split_patch()
 
     import recbole.config.configurator as recbole_configurator
     import recbole.data.utils as recbole_data_utils

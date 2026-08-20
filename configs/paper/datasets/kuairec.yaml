@@ -1,0 +1,29 @@
+trainer:
+  epochs: 25
+  train_batch_size: 1024
+  eval_batch_size: 2048
+
+resources:
+  timeout_minutes: 480
+
+model:
+  params:
+    MAX_ITEM_LIST_LENGTH: 20
+    embedding_size: 224
+    hidden_size: 224
+    num_heads: 8
+    d_ff: 448
+    d_expert_hidden: 224
+    d_router_hidden: 64
+    d_feat_emb: 20
+    expert_scale: 3
+    hidden_dropout_prob: 0.12
+    attn_dropout_prob: 0.07
+    route_consistency_lambda: 1.2e-3
+    z_loss_lambda: 1.0e-4
+    stage_feature_dropout_prob: {macro: 0.03, mid: 0.03, micro: 0.03}
+
+provenance:
+  hypothesis: recovered KuaiRec capacity center to be challenged after optimizer promotion
+  anchor_status: recovered_center_hypothesis
+  data_note: Current release is sampled relative to the paper appendix; promotion requires an explicit data-protocol decision.

@@ -173,7 +173,7 @@ class TiSASRec(SequentialRecommender):
     def _get_time_seq(self, interaction, item_seq):
         raw = interaction.interaction.get(self.time_seq_field)
         if raw is None:
-            return torch.zeros_like(item_seq)
+            return torch.zeros_like(item_seq, dtype=torch.float64)
 
         time_seq = raw
         if not torch.is_tensor(time_seq):
@@ -181,12 +181,38 @@ class TiSASRec(SequentialRecommender):
         time_seq = time_seq.to(item_seq.device)
         if time_seq.dim() > 2:
             time_seq = time_seq.squeeze(-1)
-        return time_seq.long()
+        # The camera-ready data contract stores session-relative elapsed
+        # seconds.  Keep float64 here so sub-second KuaiRec intervals and long
+        # sessions do not lose precision before the interval rescaling.
+        return time_seq.to(torch.float64)
+
+    @staticmethod
+    def _causal_interval_scale(item_seq, time_seq):
+        """Return the paper-style minimum positive context interval per row.
+
+        Each sequential sample contains only events preceding its target, so
+        the scale is causal by construction.  Repeated timestamps are ignored
+        when choosing the scale.  A one-second fallback covers length-one or
+        all-tied contexts without introducing a data-dependent future value.
+        """
+
+        valid = item_seq > 0
+        adjacent_valid = valid[:, 1:] & valid[:, :-1]
+        adjacent_delta = (time_seq[:, 1:] - time_seq[:, :-1]).abs()
+        positive = adjacent_valid & torch.isfinite(adjacent_delta) & (adjacent_delta > 0)
+        candidates = adjacent_delta.masked_fill(~positive, float("inf"))
+        scale = candidates.amin(dim=1)
+        return torch.where(torch.isfinite(scale), scale, torch.ones_like(scale))
 
     def _build_time_matrix(self, item_seq, time_seq):
-        # Pairwise time-interval matrix clipped by time_span.
+        # TiSASRec first expresses intervals in units of the minimum positive
+        # interval in the *input context*, then discretizes and clips them.
+        # This prevents raw Unix seconds from saturating nearly every bucket.
+        time_seq = time_seq.to(torch.float64)
+        scale = self._causal_interval_scale(item_seq, time_seq)
         time_diff = (time_seq.unsqueeze(-1) - time_seq.unsqueeze(-2)).abs()
-        time_diff = torch.clamp(time_diff, max=self.time_span)
+        time_diff = torch.floor(time_diff / scale[:, None, None])
+        time_diff = torch.clamp(time_diff, min=0, max=self.time_span).long()
 
         valid = (item_seq > 0)
         valid_pair = valid.unsqueeze(-1) & valid.unsqueeze(-2)
@@ -207,7 +233,7 @@ class TiSASRec(SequentialRecommender):
         abs_pos_v = self.emb_dropout(self.abs_pos_value_embedding(pos_ids))
 
         if interaction is None:
-            time_seq = torch.zeros_like(item_seq)
+            time_seq = torch.zeros_like(item_seq, dtype=torch.float64)
         else:
             time_seq = self._get_time_seq(interaction, item_seq)
         time_matrix = self._build_time_matrix(item_seq, time_seq)

@@ -9,26 +9,37 @@ from typing import Any
 
 
 DEFAULT_RELATIVE_DATA_ROOTS = (
+    Path("Datasets/core5"),
     Path("Datasets/release"),
-    Path("Datasets/processed/feature_added_v4"),
-    Path("Datasets/processed/feature_added_v3"),
-    Path("Datasets/processed/basic"),
 )
 
 CANONICAL_DATASETS = (
     "beauty",
-    "amazon_beauty",
     "foursquare",
     "KuaiRecLargeStrictPosV2_0.2",
     "lastfm0.03",
     "movielens1m",
     "retail_rocket",
+    "kuairec_full_v5",
+    "lastfm_full_v5",
+    "kuairec_full_core5_v1",
+    "lastfm_full_core5_v1",
+    "beauty_core5_v1",
+    "foursquare_core5_v1",
+    "movielens1m_core5_v1",
+    "retail_rocket_core5_v1",
+    "kuairec_adaptive_core5_v1",
+    "lastfm_recovered_core5_v1",
 )
 
 _ALIAS_TO_CANONICAL = {
-    "amazon beauty": "amazon_beauty",
-    "amazon-beauty": "amazon_beauty",
-    "amazon_beauty": "amazon_beauty",
+    # The paper dataset is ``beauty`` (33,488 prepared interactions).  A
+    # different, much smaller ``amazon_beauty`` directory is present in the
+    # historical archive.  Treating both as canonical silently changed the
+    # benchmark depending on the spelling used at the CLI.
+    "amazon beauty": "beauty",
+    "amazon-beauty": "beauty",
+    "amazon_beauty": "beauty",
     "beauty": "beauty",
     "foursquare": "foursquare",
     "kuairec": "KuaiRecLargeStrictPosV2_0.2",
@@ -36,6 +47,26 @@ _ALIAS_TO_CANONICAL = {
     "KuaiRecLargeStrictPosV2_0.2": "KuaiRecLargeStrictPosV2_0.2",
     "lastfm": "lastfm0.03",
     "lastfm0.03": "lastfm0.03",
+    # Full-data identities are deliberately distinct.  Bare ``kuairec`` and
+    # ``lastfm`` remain legacy sampled aliases for backwards compatibility.
+    "kuairec full": "kuairec_full_v5",
+    "kuairec-full": "kuairec_full_v5",
+    "kuairec_full": "kuairec_full_v5",
+    "kuairec_full_v5": "kuairec_full_v5",
+    "lastfm full": "lastfm_full_v5",
+    "lastfm-full": "lastfm_full_v5",
+    "lastfm_full": "lastfm_full_v5",
+    "lastfm_full_v5": "lastfm_full_v5",
+    # Re-sessionized full-data identities use an explicit alias so existing
+    # sampled and full-v5 experiment provenance cannot silently drift.
+    "kuairec full core5": "kuairec_full_core5_v1",
+    "kuairec-full-core5": "kuairec_full_core5_v1",
+    "kuairec_full_core5": "kuairec_full_core5_v1",
+    "kuairec_full_core5_v1": "kuairec_full_core5_v1",
+    "lastfm full core5": "lastfm_full_core5_v1",
+    "lastfm-full-core5": "lastfm_full_core5_v1",
+    "lastfm_full_core5": "lastfm_full_core5_v1",
+    "lastfm_full_core5_v1": "lastfm_full_core5_v1",
     "ml-1m": "movielens1m",
     "ml1m": "movielens1m",
     "movielens-1m": "movielens1m",
@@ -248,7 +279,13 @@ def infer_recbole_dataset_config(
         "field_separator": "\t",
         "load_col": {"inter": columns},
     }
-    if "user_id" in columns:
+    # The paper prediction unit is a reconstructed session.  Using the raw
+    # user id here joins multiple sessions into one RecBole sequence and is a
+    # different task.  ``user_id`` remains loaded as an auxiliary field.
+    if "session_id" in columns:
+        config["USER_ID_FIELD"] = "session_id"
+        config["SESSION_ID_FIELD"] = "session_id"
+    elif "user_id" in columns:
         config["USER_ID_FIELD"] = "user_id"
     if "item_id" in columns:
         config["ITEM_ID_FIELD"] = "item_id"
@@ -259,9 +296,12 @@ def infer_recbole_dataset_config(
     has_benchmark_splits = all(
         (dataset_dir / f"{dataset_name}.{suffix}.inter").exists() for suffix in split_suffixes
     )
-    has_sequence_fields = any(column.endswith("_list") for column in columns)
-    if has_benchmark_splits and has_sequence_fields:
+    if has_benchmark_splits:
+        # RouteRec installs a small RecBole compatibility patch that converts
+        # these raw, frozen split files to sequential samples.  Do not fall
+        # back to re-splitting the combined ``.inter`` file.
         config["benchmark_filename"] = list(split_suffixes)
+        config["routerec_frozen_split"] = True
 
     summary_path = _split_summary_path(dataset_dir, dataset_name)
     if summary_path is not None:

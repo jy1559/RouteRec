@@ -8,6 +8,9 @@ Paper: "Facet-Aware Multi-Head Mixture-of-Experts Model for Sequential Recommend
 (WSDM 2025)
 """
 
+import hashlib
+from pathlib import Path
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -216,6 +219,7 @@ class FAME(SequentialRecommender):
         self.n_items = dataset.item_num
         self.embedding_size = config['embedding_size']
         self.hidden_size = config['hidden_size']
+        self.inner_size = config['inner_size'] if 'inner_size' in config else self.hidden_size * 4
         self.num_layers = config['num_layers'] if 'num_layers' in config else 2
         self.num_heads = config['num_heads'] if 'num_heads' in config else 4
         self.num_experts = config['num_experts'] if 'num_experts' in config else 4
@@ -245,7 +249,12 @@ class FAME(SequentialRecommender):
         for i in range(self.num_layers):
             if i < self.num_layers - self.fame_moe_last_k_layers:
                 self.transformer_layers.append(
-                    StandardTransformerLayer(self.hidden_size, self.num_heads, self.dropout_prob)
+                    StandardTransformerLayer(
+                        self.hidden_size,
+                        self.num_heads,
+                        self.dropout_prob,
+                        self.inner_size,
+                    )
                 )
             else:
                 self.transformer_layers.append(
@@ -265,7 +274,202 @@ class FAME(SequentialRecommender):
         self.head_gate = nn.Linear(self.hidden_size, self.num_heads)
         
         self.loss_type = config['loss_type'] if 'loss_type' in config else 'CE'
+        self.fame_pretrain_report = None
+        if 'fame_pretrain_checkpoint' in config and config['fame_pretrain_checkpoint']:
+            self.fame_pretrain_report = self._load_sasrec_pretrain(
+                checkpoint_path=config['fame_pretrain_checkpoint'],
+                expected_sha256=config['fame_pretrain_sha256'],
+                policy=config['fame_pretrain_policy'],
+            )
         self.to(self.device)
+
+    @staticmethod
+    def _sha256_file(path):
+        digest = hashlib.sha256()
+        with path.open('rb') as handle:
+            for block in iter(lambda: handle.read(8 * 1024 * 1024), b''):
+                digest.update(block)
+        return digest.hexdigest()
+
+    def _load_sasrec_pretrain(self, checkpoint_path, expected_sha256, policy):
+        """Initialize the paper-retained FAME tensors from a SASRec checkpoint.
+
+        The FAME paper replaces the final SASRec query projection with MoE query
+        experts while retaining the pretrained item/position embeddings, earlier
+        Transformer blocks, and the final block's key/value projections.  The
+        FAME-specific query experts, router, per-head FFN, facet projections, and
+        head gate deliberately keep their random initialization.
+        """
+        if policy != 'sasrec_to_fame_final_query_moe_v1':
+            raise ValueError(f'Unsupported FAME pretraining policy: {policy!r}')
+        path = Path(str(checkpoint_path)).expanduser()
+        if not path.is_absolute():
+            path = (Path.cwd() / path).resolve()
+        if not path.is_file():
+            raise FileNotFoundError(f'FAME SASRec pretraining checkpoint not found: {path}')
+        actual_sha256 = self._sha256_file(path)
+        if actual_sha256 != str(expected_sha256):
+            raise ValueError(
+                'FAME SASRec pretraining checkpoint hash mismatch: '
+                f'expected={expected_sha256}, actual={actual_sha256}'
+            )
+
+        payload = torch.load(path, map_location='cpu', weights_only=False)
+        source = payload.get('state_dict', payload) if isinstance(payload, dict) else payload
+        if not isinstance(source, dict):
+            raise TypeError('FAME SASRec pretraining checkpoint has no state dictionary')
+
+        if self.embedding_size != self.hidden_size:
+            raise ValueError(
+                'Paper-aligned FAME pretraining requires embedding_size == hidden_size; '
+                f'got {self.embedding_size} and {self.hidden_size}'
+            )
+
+        mapped = []
+
+        def copy_exact(target, source_key, target_name):
+            if source_key not in source:
+                raise KeyError(f'Missing SASRec pretraining tensor: {source_key}')
+            source_tensor = source[source_key]
+            if tuple(target.shape) != tuple(source_tensor.shape):
+                raise ValueError(
+                    f'FAME pretraining shape mismatch for {target_name}: '
+                    f'target={tuple(target.shape)}, source={tuple(source_tensor.shape)}'
+                )
+            with torch.no_grad():
+                target.copy_(source_tensor.to(device=target.device, dtype=target.dtype))
+            mapped.append({'target': target_name, 'source': source_key, 'shape': list(target.shape)})
+
+        copy_exact(self.item_embedding.weight, 'item_embedding.weight', 'item_embedding.weight')
+        source_position = source.get('position_embedding.weight')
+        if source_position is None:
+            raise KeyError('Missing SASRec pretraining tensor: position_embedding.weight')
+        if (
+            source_position.ndim != 2
+            or self.position_embedding.weight.ndim != 2
+            or source_position.shape[1] != self.position_embedding.weight.shape[1]
+            or source_position.shape[0] > self.position_embedding.weight.shape[0]
+        ):
+            raise ValueError(
+                'FAME pretraining position embedding shape mismatch: '
+                f'target={tuple(self.position_embedding.weight.shape)}, '
+                f'source={tuple(source_position.shape)}'
+            )
+        with torch.no_grad():
+            self.position_embedding.weight[: source_position.shape[0]].copy_(
+                source_position.to(
+                    device=self.position_embedding.weight.device,
+                    dtype=self.position_embedding.weight.dtype,
+                )
+            )
+        mapped.append({
+            'target': 'position_embedding.weight',
+            'source': 'position_embedding.weight',
+            'shape': list(source_position.shape),
+            'copied_rows': int(source_position.shape[0]),
+        })
+
+        standard_layer_count = self.num_layers - self.fame_moe_last_k_layers
+        for index in range(standard_layer_count):
+            source_prefix = f'trm_encoder.layer.{index}'
+            target_layer = self.transformer_layers[index]
+            for source_name, target_name in (
+                ('query', 'query'),
+                ('key', 'key'),
+                ('value', 'value'),
+                ('dense', 'fc_out'),
+            ):
+                target_module = getattr(target_layer, target_name)
+                copy_exact(
+                    target_module.weight,
+                    f'{source_prefix}.multi_head_attention.{source_name}.weight',
+                    f'transformer_layers.{index}.{target_name}.weight',
+                )
+                copy_exact(
+                    target_module.bias,
+                    f'{source_prefix}.multi_head_attention.{source_name}.bias',
+                    f'transformer_layers.{index}.{target_name}.bias',
+                )
+            copy_exact(
+                target_layer.norm1.weight,
+                f'{source_prefix}.multi_head_attention.LayerNorm.weight',
+                f'transformer_layers.{index}.norm1.weight',
+            )
+            copy_exact(
+                target_layer.norm1.bias,
+                f'{source_prefix}.multi_head_attention.LayerNorm.bias',
+                f'transformer_layers.{index}.norm1.bias',
+            )
+            copy_exact(
+                target_layer.feed_forward[0].weight,
+                f'{source_prefix}.feed_forward.dense_1.weight',
+                f'transformer_layers.{index}.feed_forward.0.weight',
+            )
+            copy_exact(
+                target_layer.feed_forward[0].bias,
+                f'{source_prefix}.feed_forward.dense_1.bias',
+                f'transformer_layers.{index}.feed_forward.0.bias',
+            )
+            copy_exact(
+                target_layer.feed_forward[3].weight,
+                f'{source_prefix}.feed_forward.dense_2.weight',
+                f'transformer_layers.{index}.feed_forward.3.weight',
+            )
+            copy_exact(
+                target_layer.feed_forward[3].bias,
+                f'{source_prefix}.feed_forward.dense_2.bias',
+                f'transformer_layers.{index}.feed_forward.3.bias',
+            )
+            copy_exact(
+                target_layer.norm2.weight,
+                f'{source_prefix}.feed_forward.LayerNorm.weight',
+                f'transformer_layers.{index}.norm2.weight',
+            )
+            copy_exact(
+                target_layer.norm2.bias,
+                f'{source_prefix}.feed_forward.LayerNorm.bias',
+                f'transformer_layers.{index}.norm2.bias',
+            )
+
+        for index in range(standard_layer_count, self.num_layers):
+            source_prefix = f'trm_encoder.layer.{index}'
+            target_layer = self.transformer_layers[index]
+            copy_exact(
+                target_layer.moe_attention.key.weight,
+                f'{source_prefix}.multi_head_attention.key.weight',
+                f'transformer_layers.{index}.moe_attention.key.weight',
+            )
+            copy_exact(
+                target_layer.moe_attention.value.weight,
+                f'{source_prefix}.multi_head_attention.value.weight',
+                f'transformer_layers.{index}.moe_attention.value.weight',
+            )
+            copy_exact(
+                target_layer.norm1.weight,
+                f'{source_prefix}.multi_head_attention.LayerNorm.weight',
+                f'transformer_layers.{index}.norm1.weight',
+            )
+            copy_exact(
+                target_layer.norm1.bias,
+                f'{source_prefix}.multi_head_attention.LayerNorm.bias',
+                f'transformer_layers.{index}.norm1.bias',
+            )
+
+        return {
+            'policy': policy,
+            'checkpoint_path': str(checkpoint_path),
+            'checkpoint_sha256': actual_sha256,
+            'checkpoint_epoch': int(payload.get('epoch', -1)) if isinstance(payload, dict) else -1,
+            'mapped_tensor_count': len(mapped),
+            'mapped_tensors': mapped,
+            'randomly_initialized_components': [
+                'final_moe_query_experts',
+                'final_moe_routers',
+                'final_head_ffn',
+                'facet_projections',
+                'head_gate',
+            ],
+        }
     
     def forward(self, item_seq, item_seq_len):
         """
@@ -438,7 +642,7 @@ class FAME(SequentialRecommender):
 class StandardTransformerLayer(nn.Module):
     """Standard transformer layer for intermediate layers."""
     
-    def __init__(self, hidden_size, num_heads=4, dropout=0.1):
+    def __init__(self, hidden_size, num_heads=4, dropout=0.1, inner_size=None):
         super(StandardTransformerLayer, self).__init__()
         
         self.hidden_size = hidden_size
@@ -450,11 +654,12 @@ class StandardTransformerLayer(nn.Module):
         self.value = nn.Linear(hidden_size, hidden_size)
         self.fc_out = nn.Linear(hidden_size, hidden_size)
         
+        inner_size = int(inner_size or hidden_size * 4)
         self.feed_forward = nn.Sequential(
-            nn.Linear(hidden_size, hidden_size * 4),
+            nn.Linear(hidden_size, inner_size),
             nn.ReLU(),
             nn.Dropout(dropout),
-            nn.Linear(hidden_size * 4, hidden_size),
+            nn.Linear(inner_size, hidden_size),
             nn.Dropout(dropout)
         )
         

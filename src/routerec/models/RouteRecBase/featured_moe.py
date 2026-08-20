@@ -325,7 +325,11 @@ class RouteRecBase(SequentialRecommender):
             1,
         )
         self._schedule_epoch = 0
-        self._schedule_total_epochs = max(int(_cfg("epochs", 1)), 1)
+        # Continuation rungs train to a smaller current budget, but every
+        # schedule surface must see the immutable full-horizon contract.
+        from routerec.lr_scheduler import resolve_schedule_total_epochs
+
+        self._schedule_total_epochs = resolve_schedule_total_epochs(config)
         self._last_logged_top_k: Optional[int] = None
         self.history_input_mode = str(_cfg("history_input_mode", "session_only")).lower().strip()
         self.current_session_item_length_field = str(

@@ -360,7 +360,10 @@ class RouteRecN(SequentialRecommender):
         )
 
         self._schedule_epoch = 0
-        self._schedule_total_epochs = max(int(resolver.get("epochs", 1)), 1)
+        # Keep the model schedule invariant across exact-continuation rungs.
+        from routerec.lr_scheduler import resolve_schedule_total_epochs
+
+        self._schedule_total_epochs = resolve_schedule_total_epochs(config)
 
         self.arch_layout_id = int(self.layout_id)
         self.n_pre_layer = int(self.layout.global_pre_layers)

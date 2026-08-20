@@ -12,11 +12,11 @@ PAPER_BASELINES = (
     "GRU4Rec",
     "TiSASRec",
     "DuoRec",
-    "SIGMA",
     "BSARec",
     "FEARec",
     "DIFSR",
     "FAME",
+    "FDSA",
 )
 
 LOCAL_BASELINE_IMPLEMENTATIONS = (
@@ -31,14 +31,29 @@ LOCAL_BASELINE_IMPLEMENTATIONS = (
 )
 
 DATASET_LR_INTERVALS = {
-    "amazon_beauty": (1.5e-4, 2.0e-3),
     "beauty": (1.5e-4, 2.0e-3),
     "foursquare": (1.5e-4, 2.2e-3),
     "KuaiRecLargeStrictPosV2_0.2": (3.0e-4, 5.0e-3),
     "lastfm0.03": (8.0e-5, 1.2e-3),
+    # Cross-identity priors only.  Core5 releases require fresh validation HPO.
+    "kuairec_full_core5_v1": (3.0e-4, 5.0e-3),
+    "lastfm_full_core5_v1": (8.0e-5, 1.2e-3),
     "movielens1m": (1.5e-4, 2.2e-3),
     "retail_rocket": (1.5e-4, 2.2e-3),
 }
+
+# New camera-ready identities deliberately remain distinct.  These ranges are
+# weak cross-identity initialization priors, not transferred results.
+DATASET_LR_INTERVALS.update(
+    {
+        "beauty_core5_v1": DATASET_LR_INTERVALS["beauty"],
+        "foursquare_core5_v1": DATASET_LR_INTERVALS["foursquare"],
+        "movielens1m_core5_v1": DATASET_LR_INTERVALS["movielens1m"],
+        "retail_rocket_core5_v1": DATASET_LR_INTERVALS["retail_rocket"],
+        "kuairec_adaptive_core5_v1": DATASET_LR_INTERVALS["kuairec_full_core5_v1"],
+        "lastfm_recovered_core5_v1": DATASET_LR_INTERVALS["lastfm_full_core5_v1"],
+    }
+)
 
 ROUTEREC_DEFAULT = {
     "model": "RouteRec",
@@ -49,13 +64,13 @@ ROUTEREC_DEFAULT = {
     "d_expert_hidden": 192,
     "d_router_hidden": 64,
     "d_feat_emb": 16,
+    "num_heads": 4,
     "expert_scale": 3,
     "hidden_dropout_prob": 0.15,
-    "fixed_hidden_dropout_prob": 0.15,
     "attn_dropout_prob": 0.10,
     "learning_rate": 5.5e-4,
     "weight_decay": 1.0e-6,
-    "lr_scheduler_type": "warmup_cosine",
+    "lr_scheduler_type": "constant",
     "macro_history_window": 5,
     "route_consistency_lambda": 2.5e-4,
     "z_loss_lambda": 1.0e-4,
@@ -65,8 +80,20 @@ ROUTEREC_DEFAULT = {
     "router_feature_proj_dim": 0,
     "stage_feature_dropout_prob": 0.03,
     "stage_family_dropout_prob": {"macro": 0.02, "mid": 0.02, "micro": 0.02},
-    "layer_layout": ["layer", "layer", "layer"],
+    "layer_layout": ["attn", "macro_ffn", "mid_ffn", "attn", "micro_ffn"],
     "stage_router_granularity": {"macro": "session", "mid": "session", "micro": "token"},
+    "stage_router_mode": {"macro": "learned", "mid": "learned", "micro": "learned"},
+    "stage_router_source": {"macro": "both", "mid": "both", "micro": "both"},
+    "stage_router_wrapper": {"macro": "w5_exd", "mid": "w5_exd", "micro": "w5_exd"},
+    "stage_router_primitives": {
+        stage: {
+            "e_scalar": {"source": "feature", "top_k": 3, "temperature": 1.0},
+            "d_cond": {"source": "both", "top_k": 2, "temperature": 1.0},
+        }
+        for stage in ("macro", "mid", "micro")
+    },
+    "moe_top_k": 0,
+    "balance_loss_lambda": 0.0,
 }
 
 ROUTEREC_DATASET_PRESETS = {
@@ -79,7 +106,6 @@ ROUTEREC_DATASET_PRESETS = {
         "d_router_hidden": 64,
         "d_feat_emb": 20,
         "hidden_dropout_prob": 0.12,
-        "fixed_hidden_dropout_prob": 0.15,
         "attn_dropout_prob": 0.07,
         "learning_rate": 5.476e-4,
         "weight_decay": 1.6e-6,
@@ -87,7 +113,24 @@ ROUTEREC_DATASET_PRESETS = {
         "z_loss_lambda": 1.0e-4,
         "stage_feature_dropout_prob": 0.03,
     },
-    "amazon_beauty": {
+    "kuairec_full_core5_v1": {
+        # Weak initialization prior copied from the sampled KuaiRec identity.
+        "MAX_ITEM_LIST_LENGTH": 20,
+        "embedding_size": 224,
+        "hidden_size": 224,
+        "d_ff": 448,
+        "d_expert_hidden": 224,
+        "d_router_hidden": 64,
+        "d_feat_emb": 20,
+        "hidden_dropout_prob": 0.12,
+        "attn_dropout_prob": 0.07,
+        "learning_rate": 5.476e-4,
+        "weight_decay": 1.6e-6,
+        "route_consistency_lambda": 1.2e-3,
+        "z_loss_lambda": 1.0e-4,
+        "stage_feature_dropout_prob": 0.03,
+    },
+    "beauty": {
         "MAX_ITEM_LIST_LENGTH": 20,
         "embedding_size": 192,
         "hidden_size": 192,
@@ -96,7 +139,6 @@ ROUTEREC_DATASET_PRESETS = {
         "d_router_hidden": 32,
         "d_feat_emb": 16,
         "hidden_dropout_prob": 0.18,
-        "fixed_hidden_dropout_prob": 0.20,
         "attn_dropout_prob": 0.12,
         "learning_rate": 5.672e-4,
         "weight_decay": 5.0e-7,
@@ -113,7 +155,6 @@ ROUTEREC_DATASET_PRESETS = {
         "d_router_hidden": 32,
         "d_feat_emb": 8,
         "hidden_dropout_prob": 0.12,
-        "fixed_hidden_dropout_prob": 0.15,
         "attn_dropout_prob": 0.05,
         "learning_rate": 9.5164e-4,
         "weight_decay": 1.2e-6,
@@ -130,7 +171,23 @@ ROUTEREC_DATASET_PRESETS = {
         "d_router_hidden": 96,
         "d_feat_emb": 12,
         "hidden_dropout_prob": 0.12,
-        "fixed_hidden_dropout_prob": 0.14,
+        "attn_dropout_prob": 0.12,
+        "learning_rate": 4.983e-4,
+        "weight_decay": 5.0e-7,
+        "route_consistency_lambda": 2.5e-4,
+        "z_loss_lambda": 1.0e-4,
+        "stage_feature_dropout_prob": 0.03,
+    },
+    "lastfm_full_core5_v1": {
+        # Weak initialization prior copied from the sampled LastFM identity.
+        "MAX_ITEM_LIST_LENGTH": 30,
+        "embedding_size": 224,
+        "hidden_size": 224,
+        "d_ff": 448,
+        "d_expert_hidden": 224,
+        "d_router_hidden": 96,
+        "d_feat_emb": 12,
+        "hidden_dropout_prob": 0.12,
         "attn_dropout_prob": 0.12,
         "learning_rate": 4.983e-4,
         "weight_decay": 5.0e-7,
@@ -139,7 +196,7 @@ ROUTEREC_DATASET_PRESETS = {
         "stage_feature_dropout_prob": 0.03,
     },
     "movielens1m": {
-        "MAX_ITEM_LIST_LENGTH": 10,
+        "MAX_ITEM_LIST_LENGTH": 50,
         "embedding_size": 128,
         "hidden_size": 128,
         "d_ff": 256,
@@ -147,7 +204,6 @@ ROUTEREC_DATASET_PRESETS = {
         "d_router_hidden": 96,
         "d_feat_emb": 16,
         "hidden_dropout_prob": 0.16,
-        "fixed_hidden_dropout_prob": 0.15,
         "attn_dropout_prob": 0.07,
         "learning_rate": 1.29037e-3,
         "weight_decay": 1.0e-6,
@@ -164,7 +220,6 @@ ROUTEREC_DATASET_PRESETS = {
         "d_router_hidden": 64,
         "d_feat_emb": 8,
         "hidden_dropout_prob": 0.16,
-        "fixed_hidden_dropout_prob": 0.14,
         "attn_dropout_prob": 0.12,
         "learning_rate": 5.6966e-4,
         "weight_decay": 1.0e-6,
@@ -174,16 +229,34 @@ ROUTEREC_DATASET_PRESETS = {
     },
 }
 
+# Configuration-only weak priors for the six rebuilt identities.  Copying
+# keeps provenance names distinct and freezes the required history lengths;
+# no old metric, checkpoint, rank, split, or data identity is imported.
+_CAMERA_READY_PRIOR_SOURCE_AND_HISTORY = {
+    "beauty_core5_v1": ("beauty", 20),
+    "foursquare_core5_v1": ("foursquare", 30),
+    "movielens1m_core5_v1": ("movielens1m", 50),
+    "retail_rocket_core5_v1": ("retail_rocket", 20),
+    "kuairec_adaptive_core5_v1": ("kuairec_full_core5_v1", 20),
+    "lastfm_recovered_core5_v1": ("lastfm_full_core5_v1", 30),
+}
+for _target_dataset, (_prior_dataset, _history_length) in (
+    _CAMERA_READY_PRIOR_SOURCE_AND_HISTORY.items()
+):
+    _preset = deepcopy(ROUTEREC_DATASET_PRESETS[_prior_dataset])
+    _preset["MAX_ITEM_LIST_LENGTH"] = _history_length
+    ROUTEREC_DATASET_PRESETS[_target_dataset] = _preset
+
 BASELINE_DEFAULTS = {
     "SASRec": {"learning_rate": 7.0e-4, "MAX_ITEM_LIST_LENGTH": 20, "hidden_size": 128, "n_layers": 2, "n_heads": 2, "hidden_dropout_prob": 0.15, "attn_dropout_prob": 0.10},
     "GRU4Rec": {"learning_rate": 3.0e-3, "MAX_ITEM_LIST_LENGTH": 20, "hidden_size": 128, "n_layers": 1, "dropout_prob": 0.20},
     "TiSASRec": {"learning_rate": 5.0e-4, "MAX_ITEM_LIST_LENGTH": 20, "hidden_size": 128, "n_layers": 2, "n_heads": 2, "hidden_dropout_prob": 0.15, "time_span": 128},
     "DuoRec": {"learning_rate": 4.0e-4, "MAX_ITEM_LIST_LENGTH": 20, "hidden_size": 128, "n_layers": 2, "n_heads": 2, "hidden_dropout_prob": 0.15, "tau": 0.20, "lmd": 0.05, "lmd_sem": 0.05},
-    "SIGMA": {"learning_rate": 3.0e-4, "MAX_ITEM_LIST_LENGTH": 20, "hidden_size": 128, "n_layers": 2, "n_heads": 2, "hidden_dropout_prob": 0.15},
-    "BSARec": {"learning_rate": 5.0e-4, "MAX_ITEM_LIST_LENGTH": 20, "hidden_size": 128, "n_layers": 2, "n_heads": 2, "hidden_dropout_prob": 0.15, "alpha": 0.50, "c": 3},
-    "FEARec": {"learning_rate": 3.5e-4, "MAX_ITEM_LIST_LENGTH": 20, "hidden_size": 128, "n_layers": 2, "n_heads": 2, "hidden_dropout_prob": 0.15, "tau": 0.20, "semantic_weight": 0.05},
+    "BSARec": {"learning_rate": 5.0e-4, "MAX_ITEM_LIST_LENGTH": 20, "embedding_size": 128, "hidden_size": 128, "num_layers": 2, "num_heads": 2, "hidden_dropout_prob": 0.15, "bsarec_alpha": 0.50, "bsarec_c": 3},
+    "FEARec": {"learning_rate": 3.5e-4, "MAX_ITEM_LIST_LENGTH": 20, "hidden_size": 128, "n_layers": 2, "n_heads": 2, "inner_size": 256, "hidden_dropout_prob": 0.15, "attn_dropout_prob": 0.10, "tau": 0.20, "lmd": 0.05, "lmd_sem": 0.05, "contrast": "us", "sim": "dot", "loss_type": "CE"},
     "DIFSR": {"learning_rate": 8.0e-4, "MAX_ITEM_LIST_LENGTH": 20, "hidden_size": 128, "n_layers": 2, "n_heads": 2, "hidden_dropout_prob": 0.15, "attribute_hidden_size": 128, "fusion_type": "gate"},
     "FAME": {"learning_rate": 8.0e-4, "MAX_ITEM_LIST_LENGTH": 20, "hidden_size": 128, "n_layers": 2, "n_heads": 4, "hidden_dropout_prob": 0.15, "num_experts": 4},
+    "FDSA": {"learning_rate": 8.0e-4, "MAX_ITEM_LIST_LENGTH": 20, "hidden_size": 128, "n_layers": 2, "n_heads": 4, "inner_size": 256, "hidden_dropout_prob": 0.15, "attn_dropout_prob": 0.10, "loss_type": "CE", "pooling_mode": "mean"},
 }
 
 PAPER_BOUNDED_GRID = {
@@ -201,25 +274,21 @@ PAPER_BOUNDED_GRID = {
     "baseline_additions": {
         "TiSASRec": {"time_span": [64, 128, 256, 384, 512]},
         "GRU4Rec": {"dropout_prob": [0.10, 0.15, 0.20, 0.25, 0.30]},
-        "DuoRec": {"tau": [0.16, 0.18, 0.20, 0.22, 0.24], "contrastive_weight": [0.02, 0.03, 0.04, 0.05, 0.06], "semantic_weight": [0.0, 0.04, 0.05, 0.08, 0.10]},
-        "FEARec": {"tau": [0.16, 0.18, 0.20, 0.22, 0.24], "contrastive_weight": [0.02, 0.03, 0.04, 0.05, 0.06], "semantic_weight": [0.04, 0.05, 0.08, 0.10, 0.12]},
-        "BSARec": {"alpha": [0.35, 0.50, 0.55, 0.70], "c": [2, 3, 5, 7]},
+        "DuoRec": {"tau": [0.16, 0.18, 0.20, 0.22, 0.24], "lmd": [0.02, 0.03, 0.04, 0.05, 0.06], "lmd_sem": [0.0, 0.04, 0.05, 0.08, 0.10]},
+        "FEARec": {"tau": [0.16, 0.18, 0.20, 0.22, 0.24], "lmd": [0.02, 0.03, 0.04, 0.05, 0.06], "lmd_sem": [0.04, 0.05, 0.08, 0.10, 0.12]},
+        "BSARec": {"bsarec_alpha": [0.35, 0.50, 0.55, 0.70], "bsarec_c": [2, 3, 5, 7]},
         "DIFSR": {"attribute_hidden_size": [96, 128, 160, 192], "lambda_attr": [0.08, 0.09, 0.10, 0.12, 0.14], "fusion_type": ["gate", "sum", "concat"]},
-        "FDSA": {"attribute_hidden_size": [96, 128, 160, 192], "lambda_attr": [0.09, 0.10, 0.12, 0.14, 0.15]},
         "FAME": {"num_experts": [2, 3, 4, 5, 6]},
     },
     "routerec_additions": {
-        "backbone_depth": [1, 2, 3],
-        "dropout": [0.10, 0.12, 0.14, 0.15, 0.16, 0.17, 0.18, 0.19, 0.20, 0.22, 0.24],
-        "weight_decay": [3.125e-7, 5e-7, 6e-7, 1e-6, 1.5e-6, 2e-6, 5e-6],
+        "hidden_dropout_prob": [0.10, 0.12, 0.14, 0.15, 0.16, 0.17, 0.18, 0.19, 0.20, 0.22, 0.24],
+        "weight_decay": [5e-7, 1e-6, 1e-5, 5e-5, 1e-4, 1.5e-4],
         "expert_scale": [2, 3, 4],
-        "expert_scale_kuairec": [2, 3, 4, 5],
-        "router_width": [32, 64, 96, 128],
-        "feature_dropout": [0.0, 0.03, 0.05, 0.10],
-        "attention_dropout": [0.05, 0.06, 0.08, 0.10, 0.12],
+        "d_router_hidden": [32, 64, 96, 128],
+        "d_feat_emb": [8, 12, 16, 20],
+        "attn_dropout_prob": [0.05, 0.06, 0.08, 0.10, 0.12],
         "route_consistency_lambda": [0.0, 2.5e-4, 5e-4, 8e-4, 1.2e-3],
         "z_loss_lambda": [0.0, 5e-5, 1e-4, 2e-4],
-        "cue_bank_size": [10, 12, 16, 24],
     },
 }
 

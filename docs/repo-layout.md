@@ -1,44 +1,53 @@
-# Recommended Public Repository Layout
+# Repository layout
 
-This repository should optimize for reproducibility, readability, and low noise.
+## Tracked public tree
 
-## Keep In The Root
+```text
+RouteRec/
+  README.md
+  environment.yml
+  pyproject.toml
+  configs/
+    models/                model defaults and baseline settings
+    paper/                 protocol and dataset configuration
+    search_spaces/         disclosed bounded search space
+  src/routerec/
+    models/                RouteRec and baseline implementations
+    datasets.py            dataset names and repository-relative discovery
+    runner.py              training, validation selection, and test helpers
+    session_data.py        frozen-split sequential conversion
+  scripts/
+    train.py               isolated one-model training
+    test.py                trusted-checkpoint test evaluation
+    check_*.py             repository, data, and GPU checks
+    *core5*.py             core-filtered dataset preparation and validation
+  tests/                   unit and regression tests
+  docs/                    public protocol and reproducibility documentation
+  Datasets/README.md       acquisition and local layout guidance
+```
 
-- `README.md`: project overview, install, quickstart, reproduction entrypoint
-- `pyproject.toml`: package metadata and dependencies
-- `.gitignore`: exclude logs, checkpoints, caches, and paper build artifacts
+`src/routerec/` is the executable source of truth.
 
-## Main Directories
+## Untracked local tree
 
-- `src/routerec/`: core library code, model implementations, adapters, utilities
-- `configs/`: concise experiment configs for released models and datasets
-- `scripts/`: CLI wrappers for train, eval, export, and validation
-- `tests/`: smoke tests and regression checks for the released surface
-- `docs/`: repo layout notes, model selection notes, and reproducibility instructions
-- `paper/`: final table and figure manifests, not every draft file
-- `assets/`: a small number of figures or media files used in docs
+```text
+Datasets/**      raw, prepared, and derived datasets
+outputs/         runs, checkpoints, logs, and reports
+artifacts/       exported experiment artifacts
+local_archive/   historical recovery material
+```
 
-## Command Surface
+These paths must not be force-added. A public release may later include a small
+reviewed result manifest, but it must not include prepared datasets, private
+paths, credentials, checkpoints, or operational logs.
 
-- `python scripts/train.py --dataset <name>`
-- `python scripts/search.py --dataset <name>`
-- `python scripts/test.py --dataset <name> --checkpoint <path>`
-- `python scripts/check_repo.py`
+## Public-release standard
 
-## What The Final Repo Avoids
+A reader should be able to determine:
 
-- giant log dumps
-- temporary cleanup scripts for one server session
-- dozens of abandoned model variants without documentation
-- hidden dependencies on local dataset paths
-- notebook-only pipelines for critical results
-
-## Suggested End State
-
-The final public repo should be able to answer these questions quickly:
-
-1. How do I install the environment?
-2. How do I train the main model on one dataset?
-3. How do I evaluate and reproduce the paper metrics?
-4. Which files correspond to the released RouteRec method?
-5. Which outputs are expected after a successful run?
+1. the exact data, split, candidate, and metric contract;
+2. the complete model configuration used for a run;
+3. how to rebuild or validate each dataset without bundled restricted data;
+4. how validation selection is separated from test evaluation;
+5. how per-seed values and aggregate statistics are regenerated;
+6. which claims are limitations rather than demonstrated results.

@@ -1,0 +1,29 @@
+trainer:
+  epochs: 20
+  train_batch_size: 2048
+  eval_batch_size: 4096
+
+resources:
+  timeout_minutes: 120
+
+model:
+  params:
+    MAX_ITEM_LIST_LENGTH: 30
+    embedding_size: 160
+    hidden_size: 160
+    num_heads: 8
+    d_ff: 320
+    d_expert_hidden: 160
+    d_router_hidden: 32
+    d_feat_emb: 8
+    expert_scale: 3
+    hidden_dropout_prob: 0.12
+    attn_dropout_prob: 0.05
+    route_consistency_lambda: 2.5e-4
+    z_loss_lambda: 2.0e-4
+    stage_feature_dropout_prob: {macro: 0.10, mid: 0.10, micro: 0.10}
+
+provenance:
+  hypothesis: recovered Foursquare capacity center to be challenged after optimizer promotion
+  anchor_status: recovered_center_hypothesis
+  data_note: Frozen session-level Foursquare release.

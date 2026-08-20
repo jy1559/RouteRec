@@ -1,7 +1,12 @@
+# Compatibility config for scripts/train.py.  Campaign experiments use
+# configs/paper/** and scripts/experiment.py as the authoritative interface.
 model: RouteRec
+feature_mode: full_v4
+history_input_mode: session_only
 MAX_ITEM_LIST_LENGTH: 20
 embedding_size: 192
 hidden_size: 192
+num_heads: 4
 d_ff: 384
 d_expert_hidden: 192
 d_router_hidden: 64
@@ -9,24 +14,54 @@ d_feat_emb: 16
 expert_scale: 3
 macro_history_window: 5
 hidden_dropout_prob: 0.15
-fixed_hidden_dropout_prob: 0.15
 attn_dropout_prob: 0.10
+hidden_act: gelu
+layer_norm_eps: 1.0e-12
 learning_rate: 5.5e-4
 weight_decay: 1.0e-6
-lr_scheduler_type: warmup_cosine
+lr_scheduler_type: constant
 route_consistency_lambda: 2.5e-4
 z_loss_lambda: 1.0e-4
+use_aux_loss: true
+balance_loss_lambda: 0.0
+gate_entropy_lambda: 0.0
 router_impl: learned
 router_use_feature: true
 router_use_hidden: true
 router_feature_proj_dim: 0
-stage_family_dropout_prob:
-  macro: 0.02
-  mid: 0.02
-  micro: 0.02
-stage_feature_dropout_prob: 0.03
-layer_layout: [layer, layer, layer]
+moe_top_k: 0
+layer_layout: [attn, macro_ffn, mid_ffn, attn, micro_ffn]
 stage_router_granularity:
   macro: session
   mid: session
   micro: token
+stage_router_mode:
+  macro: learned
+  mid: learned
+  micro: learned
+stage_router_source:
+  macro: both
+  mid: both
+  micro: both
+stage_router_wrapper:
+  macro: w5_exd
+  mid: w5_exd
+  micro: w5_exd
+stage_router_primitives:
+  macro:
+    e_scalar: {source: feature, top_k: 3, temperature: 1.0}
+    d_cond: {source: both, top_k: 2, temperature: 1.0}
+  mid:
+    e_scalar: {source: feature, top_k: 3, temperature: 1.0}
+    d_cond: {source: both, top_k: 2, temperature: 1.0}
+  micro:
+    e_scalar: {source: feature, top_k: 3, temperature: 1.0}
+    d_cond: {source: both, top_k: 2, temperature: 1.0}
+stage_family_dropout_prob:
+  macro: 0.02
+  mid: 0.02
+  micro: 0.02
+stage_feature_dropout_prob:
+  macro: 0.03
+  mid: 0.03
+  micro: 0.03

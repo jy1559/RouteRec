@@ -1,114 +1,113 @@
 # RouteRec
 
-RouteRec is the paper-focused codebase for behavior-guided sparse routing in sequential recommendation. The public surface is intentionally narrow: a single released model name, paper-aligned dataset presets, bounded search ranges, and three CLI entrypoints for train, search, and test.
+RouteRec is the reference implementation of behavior-guided sparse routing for
+sequential recommendation. This branch is an independently assembled
+camera-ready release candidate; it is not a final tagged release yet.
 
-## Repository Layout
+The repository contains the RouteRec model, the paper baselines, reproducible
+training and evaluation entry points, and source code for rebuilding the
+sessionized core-filtered datasets. Prepared datasets, checkpoints, experiment
+logs, and result tables are intentionally excluded.
+
+## Evaluation contract
+
+- Prediction unit: `session_id`.
+- Split policy: consume the provided `*.train.inter`, `*.valid.inter`, and
+  `*.test.inter` files as frozen chronological splits.
+- Training examples: all valid prefixes; validation and test: the last target
+  of each session.
+- Candidate set: items observed in training. Rows with unseen positive targets
+  are excluded from the validation/test denominator.
+- Metrics: HR@10, NDCG@10, and MRR@10.
+- Model selection: the mean of validation HR@10, NDCG@10, and MRR@10.
+- Test use: after validation selection, evaluate each frozen checkpoint once.
+
+The default RouteRec configuration uses the submitted A12 layout:
 
 ```text
-RouteRec/
-├── src/routerec/        # model code, utilities, dataset resolution
-├── configs/             # RouteRec defaults, dataset presets, search spaces
-├── scripts/             # train / search / test / repo checks
-├── tests/               # smoke and regression tests for the released surface
-├── docs/                # layout, model-selection, reproducibility notes
-├── paper/               # paper-facing artifacts
-└── assets/              # figures used in docs or paper assets
+[attn, macro_ffn, mid_ffn, attn, micro_ffn]
+wrapper: w5_exd
+group router: feature, top-3
+intra-group router: hidden + feature, top-2
+active experts: 3 x 2 = 6
+global top-k: disabled
+load-balancing loss: disabled
 ```
 
 ## Installation
 
-RouteRec officially targets Python 3.10 or 3.11.
+The pinned environment targets Python 3.10, PyTorch 2.6, and RecBole 1.2.1.
 
 ```bash
-python3 -m pip install -e .
+bash scripts/create_env.sh
+micromamba activate routerec
+python -m pip install -e .
+python scripts/check_repo.py
+python -m unittest discover -s tests
 ```
 
-This installs the core runtime used by the released scripts, including RecBole, Torch, Hydra, and YAML support.
-
-If you only have Python 3.12 available, upstream RecBole dependency resolution currently fails because of its pinned `ray` requirement. In that case, use a 3.10/3.11 environment for the clean one-command install path.
-
-## Dataset Handling
-
-The CLI resolves dataset storage automatically. When `--data-path` is omitted, RouteRec searches these repository-local roots in order:
-
-1. `Datasets/release`
-2. `Datasets/processed/feature_added_v4`
-3. `Datasets/processed/feature_added_v3`
-4. `Datasets/processed/basic`
-
-This lets the released commands stay stable even if the backing data root changes later. The resolver also accepts paper-friendly aliases:
-
-- `kuairec` -> `KuaiRecLargeStrictPosV2_0.2`
-- `lastfm` -> `lastfm0.03`
-- `ml-1m` -> `movielens1m`
-- `retail-rocket` -> `retail_rocket`
-
-If you are restoring the prepared processed archive, extract it from the repository root so that the archive's `Datasets/...` tree lands directly under this repo:
+GPU availability and dataset files are checked separately:
 
 ```bash
-tar -xzf /path/to/FeaturedMoE_dataset_agent_backup_20260424.tar.gz -C /path/to/RouteRec
+python scripts/check_gpu.py --min-devices 1
+python scripts/check_data.py
 ```
 
-For the paper-facing command surface, RouteRec also supports a clean alias root at `Datasets/release`. In this workspace it can point to the restored `feature_added_v4` tree, so user-facing commands do not need to mention the engineering version baked into the original data pipeline.
+## Data preparation
 
-More details are in `docs/reproducibility.md`.
+Dataset files are not distributed in this repository. Place acquired source
+files under `Datasets/` as described in [`Datasets/README.md`](Datasets/README.md)
+and [`docs/data-contract.md`](docs/data-contract.md).
 
-At runtime, RouteRec infers the RecBole field schema directly from the dataset header and reads split ratios from the accompanying split-summary JSON when it is present. The raw `*.train.inter`, `*.valid.inter`, and `*.test.inter` files are retained as reproducibility artifacts; the released runner does not feed them through RecBole benchmark mode because these files are still raw interaction rows rather than pre-augmented sequence-list examples.
-
-## Experimental Setup
-
-The released experiment surface follows the paper's shared sessionized temporal protocol across six datasets: Beauty, Foursquare, KuaiRec, LastFM, ML-1M, and Retail Rocket.
-
-- Main comparison metrics: HR@10, NDCG@10, and MRR@20
-- Candidate set: seen-target evaluation
-- Filtering: sessions shorter than 5 and items with fewer than 3 interactions are removed
-- Sessionization: 30-minute threshold for Foursquare, KuaiRec, LastFM, ML-1M, and Retail Rocket; 14-day threshold for Beauty
-- Split: chronological 70% / 15% / 15% train / validation / test
-- Released sampled subsets: KuaiRec 20%, LastFM 3%
-
-## Main Commands
-
-Use the repository root as the working directory.
+The six-dataset core-filtering pipeline is implemented in:
 
 ```bash
-python3 scripts/check_repo.py
-python3 -m unittest discover -s tests
+python scripts/rebuild_camera_ready_core5_basic.py --help
+python scripts/build_camera_ready_core5_features.py --help
+python scripts/validate_camera_ready_core5_basic.py --help
 ```
+
+All default output paths are repository-relative and may be overridden from the
+command line. Builders publish into a new directory and refuse to overwrite an
+existing release.
+
+## Training and evaluation
+
+Run one model on one dataset:
 
 ```bash
-python3 scripts/train.py --dataset ml-1m
+python scripts/train.py \
+  --dataset beauty_core5_v1 \
+  --model RouteRec \
+  --epochs 100
 ```
+
+Evaluate a trusted best-validation checkpoint:
 
 ```bash
-python3 scripts/search.py --dataset kuairec --trials 12
+python scripts/test.py --attempt-dir outputs/runs/<attempt> --gpu 0
 ```
 
-```bash
-python3 scripts/test.py --dataset lastfm --checkpoint /path/to/model.pth
+RouteRec uses one process per GPU; multiple GPUs should run independent jobs,
+not a distributed copy of one job.
+
+## Baselines
+
+The paper baseline surface includes SASRec, GRU4Rec, TiSASRec, DuoRec, BSARec,
+FEARec, DIFSR, FAME, and FDSA. SASRec and GRU4Rec use RecBole implementations;
+the remaining implementations are bundled under `src/routerec/models/`.
+
+## Repository layout
+
+```text
+configs/       model, dataset, and protocol configuration
+Datasets/      local data only; README is the sole tracked file
+docs/          protocol and reproducibility documentation
+scripts/       setup, validation, data preparation, train, and test entry points
+src/routerec/  RouteRec and baseline implementations
+tests/         unit and regression tests
 ```
 
-For a quick smoke run, keep the model unsaved and reduce the budget:
-
-```bash
-python3 scripts/train.py --dataset ml-1m --epochs 1 --no-save-model
-```
-
-## Configuration Contract
-
-- Base defaults: `configs/models/routerec_default.yaml`
-- Dataset presets: `configs/models/routerec_dataset_presets.yaml`
-- Bounded search ranges: `configs/search_spaces/paper_bounded_grid.yaml`
-
-The search script samples inside the bounded ranges and applies dataset-specific learning-rate intervals from the search-space file after dataset alias normalization.
-
-## Outputs
-
-- `outputs/train/`: training summaries and best validation payloads
-- `outputs/search/`: per-trial search records and selected best trial
-- `outputs/test/`: checkpoint evaluation summaries
-
-## Additional Notes
-
-- The released model identity is always `RouteRec`.
-- Dataset files are intentionally kept outside version control; see `.gitignore`.
-- `docs/reproducibility.md` is the authoritative reference for dataset layout and paper-aligned settings.
+See [`docs/reproducibility.md`](docs/reproducibility.md) for artifact and
+reporting requirements. Do not treat a successful smoke test as reproduction of
+the paper's reported results.

@@ -30,8 +30,10 @@ class RepoLayoutTest(unittest.TestCase):
 
     def test_new_cli_scripts_exist(self) -> None:
         self.assertTrue((ROOT / "scripts/train.py").is_file())
-        self.assertTrue((ROOT / "scripts/search.py").is_file())
         self.assertTrue((ROOT / "scripts/test.py").is_file())
+        self.assertTrue((ROOT / "scripts/rebuild_camera_ready_core5_basic.py").is_file())
+        self.assertTrue((ROOT / "scripts/build_camera_ready_core5_features.py").is_file())
+        self.assertTrue((ROOT / "scripts/validate_camera_ready_core5_basic.py").is_file())
 
     def test_dataset_preset_overrides_generic_default(self) -> None:
         generic = recommended_routerec_config()

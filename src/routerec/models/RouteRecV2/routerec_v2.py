@@ -327,7 +327,10 @@ class RouteRecBase_V2(SequentialRecommender):
         )
 
         self._schedule_epoch = 0
-        self._schedule_total_epochs = max(int(resolver.get("epochs", 1)), 1)
+        # Keep the model schedule invariant across exact-continuation rungs.
+        from routerec.lr_scheduler import resolve_schedule_total_epochs
+
+        self._schedule_total_epochs = resolve_schedule_total_epochs(config)
 
         # Keep runtime fields aligned for logging consumers.
         try:

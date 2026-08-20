@@ -9,6 +9,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from .reviewer_controls import (
+    controlled_feature_input,
+    controlled_hidden_input,
+    freeze_random_router_path,
+    normalize_control_mode,
+)
 from .stage_modules import (
     N3StageBlock,
     SASRecStyleAttentionBlock,
@@ -128,8 +134,10 @@ class StageExecutorN3(nn.Module):
         col2idx: Dict[str, int],
         intra_group_bias_mode: Optional[Dict[str, str]] = None,
         intra_group_bias_scale: Optional[Dict[str, float]] = None,
+        reviewer_control_mode: str = "full",
     ):
         super().__init__()
+        self.reviewer_control_mode = normalize_control_mode(reviewer_control_mode)
         self.layer_layout = [str(token).lower().strip() for token in list(layer_layout or [])]
         if not self.layer_layout:
             raise ValueError("layer_layout cannot be empty.")
@@ -206,6 +214,7 @@ class StageExecutorN3(nn.Module):
                     stage_router_primitives=dict(stage_router_primitives.get(stage_name, {}) or {}),
                     intra_group_bias_mode=str(intra_group_bias_mode.get(stage_name, "none")),
                     intra_group_bias_scale=float(intra_group_bias_scale.get(stage_name, 0.0)),
+                    reviewer_control_mode=str(reviewer_control_mode),
                     router_temperature=router_temperature,
                     dense_hidden_scale=float(dense_hidden_scale),
                     stage_residual_mode=str(stage_residual_mode.get(stage_name, "base")),
@@ -350,6 +359,11 @@ class StageExecutorN3(nn.Module):
                     self.requires_features = self.requires_features or bool(block.requires_features)
                     self.supports_diagnostics = self.supports_diagnostics or bool(block.supports_diagnostics)
 
+        if self.reviewer_control_mode == "random_frozen":
+            freeze_random_router_path(self.bundle_router_modules)
+            for parameter in self.bundle_learned_logits:
+                parameter.requires_grad_(False)
+
     def stage_n_experts(self) -> int:
         return max((int(self.stage_blocks[name].n_experts) for name in _STAGE_NAMES), default=0)
 
@@ -438,7 +452,10 @@ class StageExecutorN3(nn.Module):
                     feat_in = torch.cat([feat_in, pad], dim=-1)
                 elif feat_in.size(-1) > self._n_all_features:
                     feat_in = feat_in[..., : self._n_all_features]
-            weights, logits = self.bundle_router_modules[router_index](hidden=base_hidden, feat=feat_in)
+            weights, logits = self.bundle_router_modules[router_index](
+                hidden=controlled_hidden_input(base_hidden, mode=self.reviewer_control_mode),
+                feat=controlled_feature_input(feat_in, mode=self.reviewer_control_mode),
+            )
             merged = base_hidden + (weights.unsqueeze(-1) * deltas).sum(dim=-2)
             return merged, weights, logits
 
@@ -462,6 +479,15 @@ class StageExecutorN3(nn.Module):
         Optional[torch.Tensor],
     ]:
         out = hidden
+        # Apply the reviewer intervention once at the executor boundary so no
+        # cue path can bypass it (including bundle merge routers and future
+        # feature-injection branches). Stage blocks repeat the same control as
+        # a local fail-safe.
+        controlled_feat = (
+            None
+            if feat is None
+            else controlled_feature_input(feat, mode=self.reviewer_control_mode)
+        )
         gate_weights: Dict[str, torch.Tensor] = {}
         gate_logits: Dict[str, torch.Tensor] = {}
         router_aux: Dict[str, Dict[str, object]] = {}
@@ -488,7 +514,7 @@ class StageExecutorN3(nn.Module):
                     stage_key = entry["stage_key"]
                     next_hidden, weights, logits, stage_router_aux, stage_dense_aux = self.stage_blocks[entry["stage"]](
                         out,
-                        feat,
+                        controlled_feat,
                         item_seq_len=item_seq_len,
                         routing_item_seq_len=routing_item_seq_len,
                         alpha_override=self.global_residual_alpha,
@@ -505,7 +531,7 @@ class StageExecutorN3(nn.Module):
 
                 merged_hidden, merge_w, merge_l = self._merge_bundle(
                     base_hidden=out,
-                    feat=feat,
+                    feat=controlled_feat,
                     branch_hiddens=branch_hiddens,
                     agg=str(op["agg"]),
                     learned_index=op.get("learned_index"),
@@ -527,7 +553,7 @@ class StageExecutorN3(nn.Module):
             stage_key = op["stage_key"]
             next_hidden, weights, logits, stage_router_aux, stage_dense_aux = self.stage_blocks[op["stage"]](
                 out,
-                feat,
+                controlled_feat,
                 item_seq_len=item_seq_len,
                 routing_item_seq_len=routing_item_seq_len,
                 alpha_override=self.global_residual_alpha,

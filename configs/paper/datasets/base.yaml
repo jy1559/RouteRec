@@ -1,0 +1,21 @@
+optimization:
+  learner: adam
+  learning_rate: 5.5e-4
+  weight_decay: 1.0e-6
+  lr_scheduler_type: constant
+
+trainer:
+  epochs: 20
+  stopping_step: 4
+  eval_step: 1
+  train_batch_size: 2048
+  eval_batch_size: 2048
+  reproducibility: true
+  grad_clip_norm: 5.0
+
+resources:
+  gpus: 1
+  cpu_threads: 8
+  timeout_minutes: 360
+  memory_gb: 24
+  gpu_memory_gb: 12
