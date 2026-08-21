@@ -24,6 +24,6 @@ model:
     stage_feature_dropout_prob: {macro: 0.10, mid: 0.10, micro: 0.10}
 
 provenance:
-  hypothesis: recovered Foursquare capacity center to be challenged after optimizer promotion
-  anchor_status: recovered_center_hypothesis
-  data_note: Frozen session-level Foursquare release.
+  dataset_id: foursquare_core5_v1
+  preset_role: initialization_only
+  data_note: Use the validated frozen-session core5 identity.

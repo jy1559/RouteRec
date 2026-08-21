@@ -1,6 +1,5 @@
 ﻿from __future__ import annotations
 
-import importlib.util
 import json
 from pathlib import Path
 import sys
@@ -10,12 +9,12 @@ import pytest
 import torch
 
 
-MODULE_PATH = Path(__file__).resolve().parents[1] / "src" / "routerec" / "session_data.py"
-SPEC = importlib.util.spec_from_file_location("mid_broadcast_session_data", MODULE_PATH)
-assert SPEC is not None and SPEC.loader is not None
-MOD = importlib.util.module_from_spec(SPEC)
-sys.modules[SPEC.name] = MOD
-SPEC.loader.exec_module(MOD)
+ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+
+import routerec.session_data as MOD
 
 
 class FakeInteraction:
@@ -66,7 +65,7 @@ def raw_interaction() -> FakeInteraction:
             "session_id": torch.tensor([1, 1, 1, 1]),
             "item_id": torch.tensor([10, 11, 12, 13]),
             "timestamp": torch.tensor([0.0, 1.0, 2.0, 3.0]),
-            # Row j is the full-v5 strict-prefix mid cue for target j.
+            # Row j is the strict-prefix mid cue for target j.
             "mid_valid_r": torch.tensor([0.0, 10.0, 20.0, 30.0]),
             # Macro is constant; micro remains event-local/position-wise.
             "mac5_ctx_valid_r": torch.tensor([5.0, 5.0, 5.0, 5.0]),
@@ -110,7 +109,7 @@ def test_validation_last_target_uses_same_causal_alignment_and_zero_padding() ->
     assert converted["mic_valid_r_list"].tolist() == [[100.0, 101.0, 102.0, 0.0]]
 
 
-def test_flag_off_preserves_legacy_per_position_mid_history() -> None:
+def test_flag_off_preserves_per_position_mid_history() -> None:
     converted = MOD._convert_interactions(
         DatasetLike(training_contract=False), raw_interaction(), training=False
     )
@@ -119,11 +118,11 @@ def test_flag_off_preserves_legacy_per_position_mid_history() -> None:
 
 
 def test_history_profile_changes_only_for_opted_in_routerec() -> None:
-    legacy_route = DatasetLike(training_contract=False).config
+    standard_route = DatasetLike(training_contract=False).config
     aligned_route = DatasetLike(training_contract=True).config
     baseline_off = DatasetLike(training_contract=False, model="SASRec").config
     baseline_on = DatasetLike(training_contract=True, model="SASRec").config
-    assert MOD._history_profile(legacy_route) == "routerec_route_features"
+    assert MOD._history_profile(standard_route) == "routerec_route_features"
     assert MOD._history_profile(aligned_route).endswith("target_mid_broadcast_v1")
     assert MOD._history_profile(baseline_off) == MOD._history_profile(baseline_on)
     assert MOD._history_profile(baseline_on) == "baseline_item_only"
@@ -134,8 +133,8 @@ def test_cache_identity_versions_and_separates_target_mid_semantics(tmp_path: Pa
     assert MOD._PATCH_VERSION == 6
     enabled_key = MOD._cache_key(dataset, ["train", "valid", "test"])
     dataset.config["routerec_causal_mid_target_broadcast"] = False
-    legacy_key = MOD._cache_key(dataset, ["train", "valid", "test"])
-    assert enabled_key != legacy_key
+    standard_key = MOD._cache_key(dataset, ["train", "valid", "test"])
+    assert enabled_key != standard_key
 
 
 def write_contract_fixture(root: Path, *, mid_scope: str = "strict_prefix") -> DatasetLike:
@@ -146,10 +145,10 @@ def write_contract_fixture(root: Path, *, mid_scope: str = "strict_prefix") -> D
     directory.mkdir(parents=True)
     for split in ("train", "valid", "test"):
         (directory / f"toy.{split}.inter").write_text("header\n", encoding="utf-8")
-    (directory / "feature_meta_v3.json").write_text(
+    (directory / "feature_metadata.json").write_text(
         json.dumps(
             {
-                "reconstruction_contract": "full-v5-leakage-correct-20260812",
+                "reconstruction_contract": "core5-features-leakage-safe-v1",
                 "mid_scope": mid_scope,
                 "all_features": [f"mid_{index}" for index in range(16)],
             }
@@ -159,7 +158,7 @@ def write_contract_fixture(root: Path, *, mid_scope: str = "strict_prefix") -> D
     return dataset
 
 
-def test_contract_guard_accepts_only_full_v5_strict_prefix_metadata(tmp_path: Path) -> None:
+def test_contract_guard_accepts_only_leakage_safe_strict_prefix_metadata(tmp_path: Path) -> None:
     valid = write_contract_fixture(tmp_path / "valid")
     MOD._validate_target_mid_broadcast_contract(valid, ["train", "valid", "test"])
 

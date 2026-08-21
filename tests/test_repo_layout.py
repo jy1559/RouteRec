@@ -28,12 +28,18 @@ class RepoLayoutTest(unittest.TestCase):
         self.assertIn("SASRec", PAPER_BASELINES)
         self.assertIn("lastfm0.03", DATASET_LR_INTERVALS)
 
-    def test_new_cli_scripts_exist(self) -> None:
+    def test_public_cli_scripts_exist(self) -> None:
         self.assertTrue((ROOT / "scripts/train.py").is_file())
-        self.assertTrue((ROOT / "scripts/test.py").is_file())
-        self.assertTrue((ROOT / "scripts/rebuild_camera_ready_core5_basic.py").is_file())
-        self.assertTrue((ROOT / "scripts/build_camera_ready_core5_features.py").is_file())
-        self.assertTrue((ROOT / "scripts/validate_camera_ready_core5_basic.py").is_file())
+        self.assertTrue((ROOT / "scripts/evaluate.py").is_file())
+        self.assertTrue((ROOT / "scripts/build_core5_splits.py").is_file())
+        self.assertTrue((ROOT / "scripts/build_core5_features.py").is_file())
+        self.assertTrue((ROOT / "scripts/validate_core5_splits.py").is_file())
+        self.assertTrue((ROOT / "scripts/validate_feature_dataset.py").is_file())
+
+    def test_only_stable_routerec_package_is_public(self) -> None:
+        self.assertTrue((ROOT / "src/routerec/models/routerec/model.py").is_file())
+        for old_name in ("RouteRec", "RouteRecBase", "RouteRecN", "RouteRecV2"):
+            self.assertFalse((ROOT / "src/routerec/models" / old_name).exists())
 
     def test_dataset_preset_overrides_generic_default(self) -> None:
         generic = recommended_routerec_config()

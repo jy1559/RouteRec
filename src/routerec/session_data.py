@@ -24,6 +24,8 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
+from .datasets import find_feature_metadata
+
 try:
     import fcntl
 except ImportError:  # pragma: no cover - RouteRec production workers are Linux.
@@ -33,10 +35,13 @@ except ImportError:  # pragma: no cover - RouteRec production workers are Linux.
 _PATCHED = False
 _PATCH_VERSION = 6
 _TARGET_MID_BROADCAST_FLAG = "routerec_causal_mid_target_broadcast"
-_TARGET_MID_CONTRACT = "full-v5-leakage-correct-20260812"
+_TARGET_MID_CONTRACTS = {
+    "core5-features-leakage-safe-v1",
+    "full-v5-leakage-correct-20260812",
+}
 
-# These are the models whose interaction access has been audited in the
-# camera-ready source.  Keep unknown models on the legacy all-history path:
+# These are the models whose interaction access has been audited in the public
+# source. Keep unknown models on the all-history path:
 # silently projecting a future model to item-only data could change behavior.
 _ITEM_ONLY_HISTORY_MODELS = {
     "bsarec",
@@ -49,16 +54,7 @@ _ITEM_ONLY_HISTORY_MODELS = {
     "sasrec",
     "sigma",
 }
-_ROUTEREC_HISTORY_MODELS = {
-    "duorecrouterec",
-    "featuredmoe",
-    "featuredmoen3",
-    "routerec",
-    "routerecbase",
-    "routerecbasev2",
-    "routerecn",
-    "routerecv2",
-}
+_ROUTEREC_HISTORY_MODELS = {"routerec"}
 
 
 def _config_get(config: Any, key: str, default: Any = None) -> Any:
@@ -88,7 +84,7 @@ def _target_mid_broadcast_enabled(config: Any) -> bool:
     """Whether a RouteRec sample uses its target-row strict-prefix mid cue.
 
     The target interaction itself is never copied into model history.  Only its
-    ``mid_*`` row is eligible, and the full-v5 builder guarantees that those
+    ``mid_*`` row is eligible, and the feature builder guarantees that those
     fields were computed from events strictly before the target row.
     """
 
@@ -123,7 +119,7 @@ def _history_profile(config: Any) -> str:
         return "tisasrec_item_timestamp_elapsed_seconds_v1"
     if _model_key(config) in _ITEM_ONLY_HISTORY_MODELS:
         return "baseline_item_only"
-    return "legacy_all_fields"
+    return "all_fields"
 
 
 def _broadcast_target_mid_history(
@@ -170,19 +166,19 @@ def _validate_target_mid_broadcast_contract(dataset: Any, split_names: list[str]
     if not _is_routerec_model(dataset.config):
         raise ValueError(f"{_TARGET_MID_BROADCAST_FLAG}=true is RouteRec-only")
     data_root = _benchmark_data_root(dataset, split_names)
-    metadata_path = data_root / "feature_meta_v3.json"
-    if not metadata_path.is_file():
+    metadata_path = find_feature_metadata(data_root)
+    if metadata_path is None:
         raise ValueError(
-            f"{_TARGET_MID_BROADCAST_FLAG}=true requires {metadata_path.name}"
+            f"{_TARGET_MID_BROADCAST_FLAG}=true requires feature metadata"
         )
     try:
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise ValueError(f"could not read target-mid contract: {metadata_path}") from exc
-    if metadata.get("reconstruction_contract") != _TARGET_MID_CONTRACT:
+    if metadata.get("reconstruction_contract") not in _TARGET_MID_CONTRACTS:
         raise ValueError(
-            "target-mid broadcast requires reconstruction_contract="
-            f"{_TARGET_MID_CONTRACT!r}"
+            "target-mid broadcast requires a supported leakage-safe "
+            "reconstruction_contract"
         )
     if metadata.get("mid_scope") != "strict_prefix":
         raise ValueError("target-mid broadcast requires feature metadata mid_scope='strict_prefix'")
@@ -197,9 +193,9 @@ def _validate_target_mid_broadcast_contract(dataset: Any, split_names: list[str]
 
 def _tisas_timestamp_unit(dataset: Any, split_names: list[str]) -> str:
     data_root = _benchmark_data_root(dataset, split_names)
-    metadata_path = data_root / "feature_meta_v3.json"
-    if not metadata_path.is_file():
-        raise ValueError("TiSASRec exact-seconds loading requires feature_meta_v3.json")
+    metadata_path = find_feature_metadata(data_root)
+    if metadata_path is None:
+        raise ValueError("TiSASRec exact-seconds loading requires feature metadata")
     try:
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:

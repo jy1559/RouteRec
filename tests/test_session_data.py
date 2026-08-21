@@ -42,13 +42,7 @@ class RecboleConfigDefaultTest(unittest.TestCase):
         self.assertEqual(_history_fields(sas, fields), ["item_id"])
         fdsa = DatasetLike("FDSA")
         self.assertEqual(_history_fields(fdsa, fields), ["item_id"])
-        # Historical FeaturedMoE labels are RouteRec-family aliases.
-        featured_moe = DatasetLike("FeaturedMoE_N3")
-        self.assertEqual(
-            _history_fields(featured_moe, fields),
-            ["item_id", "mid_focus", "mic_tempo"],
-        )
-        # Unknown/future models retain the legacy projection rather than
+        # Unknown/future models retain all fields rather than
         # silently losing an interaction sequence they might consume.
         unknown = DatasetLike("FutureContextModel")
         self.assertEqual(
@@ -63,7 +57,7 @@ class RecboleConfigDefaultTest(unittest.TestCase):
         self.assertEqual(_history_profile(sas.config), "baseline_item_only")
         self.assertEqual(
             _history_profile(unknown.config),
-            "legacy_all_fields",
+            "all_fields",
         )
 
     def test_cache_key_separates_history_profiles(self) -> None:
@@ -134,7 +128,7 @@ class RecboleConfigDefaultTest(unittest.TestCase):
             )
             for split in ("train", "valid", "test"):
                 (dataset_dir / f"toy.{split}.inter").write_text(rows, encoding="utf-8")
-            (dataset_dir / "feature_meta_v3.json").write_text(
+            (dataset_dir / "feature_metadata.json").write_text(
                 '{"timestamp_unit":"ms"}', encoding="utf-8"
             )
             values = _load_tisas_elapsed_seconds(
@@ -161,7 +155,7 @@ class RecboleConfigDefaultTest(unittest.TestCase):
             )
             for split in ("train", "valid", "test"):
                 (dataset_dir / f"toy.{split}.inter").write_text(content, encoding="utf-8")
-            (dataset_dir / "feature_meta_v3.json").write_text(
+            (dataset_dir / "feature_metadata.json").write_text(
                 '{"timestamp_unit":"s"}', encoding="utf-8"
             )
             values = _load_tisas_elapsed_seconds(

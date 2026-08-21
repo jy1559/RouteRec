@@ -24,6 +24,6 @@ model:
     stage_feature_dropout_prob: {macro: 0.10, mid: 0.10, micro: 0.10}
 
 provenance:
-  hypothesis: recovered beauty-like capacity center from a suspect amazon_beauty alias lineage
-  anchor_status: recovered_center_hypothesis
-  data_note: Paper-sized beauty release; do not substitute the historical amazon_beauty copy.
+  dataset_id: beauty_core5_v1
+  preset_role: initialization_only
+  data_note: Use the validated core5 identity; do not substitute another Beauty copy.

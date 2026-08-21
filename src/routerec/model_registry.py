@@ -35,14 +35,11 @@ DATASET_LR_INTERVALS = {
     "foursquare": (1.5e-4, 2.2e-3),
     "KuaiRecLargeStrictPosV2_0.2": (3.0e-4, 5.0e-3),
     "lastfm0.03": (8.0e-5, 1.2e-3),
-    # Cross-identity priors only.  Core5 releases require fresh validation HPO.
-    "kuairec_full_core5_v1": (3.0e-4, 5.0e-3),
-    "lastfm_full_core5_v1": (8.0e-5, 1.2e-3),
     "movielens1m": (1.5e-4, 2.2e-3),
     "retail_rocket": (1.5e-4, 2.2e-3),
 }
 
-# New camera-ready identities deliberately remain distinct.  These ranges are
+# Core5 identities deliberately remain distinct. These ranges are
 # weak cross-identity initialization priors, not transferred results.
 DATASET_LR_INTERVALS.update(
     {
@@ -50,8 +47,8 @@ DATASET_LR_INTERVALS.update(
         "foursquare_core5_v1": DATASET_LR_INTERVALS["foursquare"],
         "movielens1m_core5_v1": DATASET_LR_INTERVALS["movielens1m"],
         "retail_rocket_core5_v1": DATASET_LR_INTERVALS["retail_rocket"],
-        "kuairec_adaptive_core5_v1": DATASET_LR_INTERVALS["kuairec_full_core5_v1"],
-        "lastfm_recovered_core5_v1": DATASET_LR_INTERVALS["lastfm_full_core5_v1"],
+        "kuairec_adaptive_core5_v1": DATASET_LR_INTERVALS["KuaiRecLargeStrictPosV2_0.2"],
+        "lastfm_recovered_core5_v1": DATASET_LR_INTERVALS["lastfm0.03"],
     }
 )
 
@@ -98,23 +95,6 @@ ROUTEREC_DEFAULT = {
 
 ROUTEREC_DATASET_PRESETS = {
     "KuaiRecLargeStrictPosV2_0.2": {
-        "MAX_ITEM_LIST_LENGTH": 20,
-        "embedding_size": 224,
-        "hidden_size": 224,
-        "d_ff": 448,
-        "d_expert_hidden": 224,
-        "d_router_hidden": 64,
-        "d_feat_emb": 20,
-        "hidden_dropout_prob": 0.12,
-        "attn_dropout_prob": 0.07,
-        "learning_rate": 5.476e-4,
-        "weight_decay": 1.6e-6,
-        "route_consistency_lambda": 1.2e-3,
-        "z_loss_lambda": 1.0e-4,
-        "stage_feature_dropout_prob": 0.03,
-    },
-    "kuairec_full_core5_v1": {
-        # Weak initialization prior copied from the sampled KuaiRec identity.
         "MAX_ITEM_LIST_LENGTH": 20,
         "embedding_size": 224,
         "hidden_size": 224,
@@ -178,23 +158,6 @@ ROUTEREC_DATASET_PRESETS = {
         "z_loss_lambda": 1.0e-4,
         "stage_feature_dropout_prob": 0.03,
     },
-    "lastfm_full_core5_v1": {
-        # Weak initialization prior copied from the sampled LastFM identity.
-        "MAX_ITEM_LIST_LENGTH": 30,
-        "embedding_size": 224,
-        "hidden_size": 224,
-        "d_ff": 448,
-        "d_expert_hidden": 224,
-        "d_router_hidden": 96,
-        "d_feat_emb": 12,
-        "hidden_dropout_prob": 0.12,
-        "attn_dropout_prob": 0.12,
-        "learning_rate": 4.983e-4,
-        "weight_decay": 5.0e-7,
-        "route_consistency_lambda": 2.5e-4,
-        "z_loss_lambda": 1.0e-4,
-        "stage_feature_dropout_prob": 0.03,
-    },
     "movielens1m": {
         "MAX_ITEM_LIST_LENGTH": 50,
         "embedding_size": 128,
@@ -232,16 +195,16 @@ ROUTEREC_DATASET_PRESETS = {
 # Configuration-only weak priors for the six rebuilt identities.  Copying
 # keeps provenance names distinct and freezes the required history lengths;
 # no old metric, checkpoint, rank, split, or data identity is imported.
-_CAMERA_READY_PRIOR_SOURCE_AND_HISTORY = {
+_CORE5_PRIOR_SOURCE_AND_HISTORY = {
     "beauty_core5_v1": ("beauty", 20),
     "foursquare_core5_v1": ("foursquare", 30),
     "movielens1m_core5_v1": ("movielens1m", 50),
     "retail_rocket_core5_v1": ("retail_rocket", 20),
-    "kuairec_adaptive_core5_v1": ("kuairec_full_core5_v1", 20),
-    "lastfm_recovered_core5_v1": ("lastfm_full_core5_v1", 30),
+    "kuairec_adaptive_core5_v1": ("KuaiRecLargeStrictPosV2_0.2", 20),
+    "lastfm_recovered_core5_v1": ("lastfm0.03", 30),
 }
 for _target_dataset, (_prior_dataset, _history_length) in (
-    _CAMERA_READY_PRIOR_SOURCE_AND_HISTORY.items()
+    _CORE5_PRIOR_SOURCE_AND_HISTORY.items()
 ):
     _preset = deepcopy(ROUTEREC_DATASET_PRESETS[_prior_dataset])
     _preset["MAX_ITEM_LIST_LENGTH"] = _history_length

@@ -1,0 +1,43 @@
+cff-version: 1.2.0
+message: "If you use RouteRec in your research, please cite the paper below."
+title: "RouteRec"
+type: software
+version: "0.1.0"
+repository-code: "https://github.com/jy1559/RouteRec"
+license: "Apache-2.0"
+authors:
+  - family-names: "Song"
+    given-names: "Junyeong"
+    email: "jy1559@kaist.ac.kr"
+    affiliation: "Korea Advanced Institute of Science and Technology"
+    city: "Daejeon"
+    country: "KR"
+    orcid: "https://orcid.org/0009-0009-7590-4673"
+  - family-names: "Yoo"
+    given-names: "Jaemin"
+    email: "jaeminyoo@snu.ac.kr"
+    affiliation: "Seoul National University"
+    city: "Seoul"
+    country: "KR"
+    orcid: "https://orcid.org/0000-0001-7237-5117"
+preferred-citation:
+  type: conference-paper
+  title: "RouteRec: Behavior-Guided Sparse Routing for Sequential Recommendation"
+  authors:
+    - family-names: "Song"
+      given-names: "Junyeong"
+      orcid: "https://orcid.org/0009-0009-7590-4673"
+    - family-names: "Yoo"
+      given-names: "Jaemin"
+      orcid: "https://orcid.org/0000-0001-7237-5117"
+  conference:
+    name: "The 35th ACM International Conference on Information and Knowledge Management (CIKM '26)"
+    date-start: "2026-11-07"
+    date-end: "2026-11-11"
+    location: "Rome, Italy"
+  collection-title: "Proceedings of the 35th ACM International Conference on Information and Knowledge Management"
+  publisher:
+    name: "Association for Computing Machinery"
+  doi: "10.1145/3799682.3841104"
+  isbn: "979-8-4007-2539-5"
+  year: 2026

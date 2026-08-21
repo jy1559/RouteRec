@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# Adapted from AIM-SE/DIF-SR and modified for RouteRec.
+
 """
 DIF-SR - Decoupled Side Information Fusion for Sequential Recommendation
 

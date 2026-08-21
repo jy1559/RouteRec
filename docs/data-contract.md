@@ -48,12 +48,12 @@ evaluated only after a configuration and best-validation checkpoint are frozen.
 
 The public data pipeline provides three stages:
 
-1. `rebuild_camera_ready_core5_basic.py` builds and validates a four-column,
+1. `build_core5_splits.py` builds a four-column,
    sessionized core-filtered release.
-2. `build_camera_ready_core5_features.py` fits feature statistics on training
+2. `validate_core5_splits.py` independently verifies the split release.
+3. `build_core5_features.py` fits feature statistics on training
    data and publishes the experiment-facing feature tree.
-3. `validate_camera_ready_core5_basic.py` and
-   `validate_full_feature_dataset.py` independently verify the outputs.
+4. `validate_feature_dataset.py` independently verifies the feature output.
 
 Default outputs are repository-relative:
 

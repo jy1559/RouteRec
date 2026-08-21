@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2020 RUCAIBox
+# SPDX-License-Identifier: MIT
+
 """DuoRec model for RecBole-style sequential recommendation.
 
 Adapted from the official DuoRec implementation and adjusted to run on

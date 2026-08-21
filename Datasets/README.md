@@ -19,9 +19,10 @@ dataset, so raw or prepared files are not bundled here.
 To rebuild the core-filtered releases, inspect the required inputs and options:
 
 ```bash
-python scripts/rebuild_camera_ready_core5_basic.py --help
-python scripts/build_camera_ready_core5_features.py --help
-python scripts/validate_camera_ready_core5_basic.py --help
+python scripts/build_core5_splits.py --help
+python scripts/validate_core5_splits.py --help
+python scripts/build_core5_features.py --help
+python scripts/validate_feature_dataset.py --help
 ```
 
 The builders use frozen chronological splits, fit filtering/normalization state

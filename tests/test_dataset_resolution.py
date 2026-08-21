@@ -21,57 +21,18 @@ class DatasetResolutionTest(unittest.TestCase):
         self.assertEqual(normalize_dataset_name("kuairec"), "KuaiRecLargeStrictPosV2_0.2")
         self.assertEqual(normalize_dataset_name("retailrocket"), "retail_rocket")
         self.assertEqual(normalize_dataset_name("amazon_beauty"), "beauty")
-        self.assertEqual(normalize_dataset_name("kuairec_full"), "kuairec_full_v5")
-        self.assertEqual(normalize_dataset_name("lastfm-full"), "lastfm_full_v5")
-        self.assertEqual(normalize_dataset_name("kuairec-full-core5"), "kuairec_full_core5_v1")
-        self.assertEqual(normalize_dataset_name("lastfm full core5"), "lastfm_full_core5_v1")
-        self.assertNotEqual(normalize_dataset_name("kuairec"), normalize_dataset_name("kuairec_full"))
-        self.assertNotEqual(normalize_dataset_name("lastfm"), normalize_dataset_name("lastfm_full"))
-        self.assertNotEqual(normalize_dataset_name("kuairec_full"), normalize_dataset_name("kuairec_full_core5"))
         self.assertEqual(normalize_dataset_name("beauty_core5_v1"), "beauty_core5_v1")
         self.assertEqual(
             normalize_dataset_name("kuairec_adaptive_core5_v1"),
             "kuairec_adaptive_core5_v1",
         )
-        # Bare aliases must never drift to the new camera-ready identities.
+        # Bare aliases must never drift to a different prepared identity.
         self.assertEqual(normalize_dataset_name("kuairec"), "KuaiRecLargeStrictPosV2_0.2")
         self.assertEqual(normalize_dataset_name("lastfm"), "lastfm0.03")
 
-    def test_legacy_full_alias_is_discoverable_with_explicit_root(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            repo_root = Path(tmp_dir)
-            dataset_dir = repo_root / "legacy_data/kuairec_full_v5"
-            dataset_dir.mkdir(parents=True)
-            (dataset_dir / "kuairec_full_v5.train.inter").write_text("header\n", encoding="utf-8")
-
-            resolved = resolve_dataset_runtime(
-                dataset="kuairec_full",
-                data_path=str(dataset_dir.parent),
-                repo_root=repo_root,
-                require_existing=True,
-            )
-            self.assertEqual(resolved.dataset_name, "kuairec_full_v5")
-            self.assertEqual(resolved.dataset_dir, dataset_dir)
-
-    def test_legacy_core5_alias_is_discoverable_with_explicit_root(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            repo_root = Path(tmp_dir)
-            dataset_dir = repo_root / "legacy_data/lastfm_full_core5_v1"
-            dataset_dir.mkdir(parents=True)
-            (dataset_dir / "lastfm_full_core5_v1.train.inter").write_text("header\n", encoding="utf-8")
-
-            resolved = resolve_dataset_runtime(
-                dataset="lastfm-full-core5",
-                data_path=str(dataset_dir.parent),
-                repo_root=repo_root,
-                require_existing=True,
-            )
-            self.assertEqual(resolved.dataset_name, "lastfm_full_core5_v1")
-            self.assertEqual(resolved.dataset_dir, dataset_dir)
-
-    def test_core5_alias_receives_explicit_weak_prior(self) -> None:
-        kuai = recommended_routerec_config("kuairec-full-core5")
-        lastfm = recommended_routerec_config("lastfm-full-core5")
+    def test_core5_identities_receive_explicit_initialization_presets(self) -> None:
+        kuai = recommended_routerec_config("kuairec_adaptive_core5_v1")
+        lastfm = recommended_routerec_config("lastfm_recovered_core5_v1")
         self.assertEqual(kuai["MAX_ITEM_LIST_LENGTH"], 20)
         self.assertEqual(lastfm["MAX_ITEM_LIST_LENGTH"], 30)
         self.assertEqual(kuai["learning_rate_range"], [3.0e-4, 5.0e-3])

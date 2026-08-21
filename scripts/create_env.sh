@@ -31,5 +31,6 @@ Activate it with:
   $manager activate routerec
 
 Then validate the checkout with:
-  bash scripts/setup_server.sh
+  python scripts/check_repo.py
+  python -m pytest -q
 EOF

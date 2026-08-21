@@ -12,18 +12,20 @@ RouteRec/
     paper/                 protocol and dataset configuration
     search_spaces/         disclosed bounded search space
   src/routerec/
-    models/                RouteRec and baseline implementations
+    models/routerec/       stable RouteRec implementation package
+    models/*.py            bundled baseline implementations
     datasets.py            dataset names and repository-relative discovery
     runner.py              training, validation selection, and test helpers
     session_data.py        frozen-split sequential conversion
   scripts/
     train.py               isolated one-model training
-    test.py                trusted-checkpoint test evaluation
+    evaluate.py            trusted-checkpoint test evaluation
     check_*.py             repository, data, and GPU checks
     *core5*.py             core-filtered dataset preparation and validation
   tests/                   unit and regression tests
   docs/                    public protocol and reproducibility documentation
   Datasets/README.md       acquisition and local layout guidance
+  .github/workflows/       clean CPU validation workflow
 ```
 
 `src/routerec/` is the executable source of truth.
@@ -37,7 +39,7 @@ artifacts/       exported experiment artifacts
 local_archive/   historical recovery material
 ```
 
-These paths must not be force-added. A public release may later include a small
+These paths must not be force-added. A public release may include a small
 reviewed result manifest, but it must not include prepared datasets, private
 paths, credentials, checkpoints, or operational logs.
 

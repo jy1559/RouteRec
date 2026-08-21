@@ -13,6 +13,10 @@ DEFAULT_RELATIVE_DATA_ROOTS = (
     Path("Datasets/release"),
 )
 
+# New releases use the stable name. The second entry keeps already prepared
+# prepared data readable without exposing a versioned name elsewhere.
+FEATURE_METADATA_FILENAMES = ("feature_metadata.json", "feature_meta_v3.json")
+
 CANONICAL_DATASETS = (
     "beauty",
     "foursquare",
@@ -20,10 +24,6 @@ CANONICAL_DATASETS = (
     "lastfm0.03",
     "movielens1m",
     "retail_rocket",
-    "kuairec_full_v5",
-    "lastfm_full_v5",
-    "kuairec_full_core5_v1",
-    "lastfm_full_core5_v1",
     "beauty_core5_v1",
     "foursquare_core5_v1",
     "movielens1m_core5_v1",
@@ -47,26 +47,6 @@ _ALIAS_TO_CANONICAL = {
     "KuaiRecLargeStrictPosV2_0.2": "KuaiRecLargeStrictPosV2_0.2",
     "lastfm": "lastfm0.03",
     "lastfm0.03": "lastfm0.03",
-    # Full-data identities are deliberately distinct.  Bare ``kuairec`` and
-    # ``lastfm`` remain legacy sampled aliases for backwards compatibility.
-    "kuairec full": "kuairec_full_v5",
-    "kuairec-full": "kuairec_full_v5",
-    "kuairec_full": "kuairec_full_v5",
-    "kuairec_full_v5": "kuairec_full_v5",
-    "lastfm full": "lastfm_full_v5",
-    "lastfm-full": "lastfm_full_v5",
-    "lastfm_full": "lastfm_full_v5",
-    "lastfm_full_v5": "lastfm_full_v5",
-    # Re-sessionized full-data identities use an explicit alias so existing
-    # sampled and full-v5 experiment provenance cannot silently drift.
-    "kuairec full core5": "kuairec_full_core5_v1",
-    "kuairec-full-core5": "kuairec_full_core5_v1",
-    "kuairec_full_core5": "kuairec_full_core5_v1",
-    "kuairec_full_core5_v1": "kuairec_full_core5_v1",
-    "lastfm full core5": "lastfm_full_core5_v1",
-    "lastfm-full-core5": "lastfm_full_core5_v1",
-    "lastfm_full_core5": "lastfm_full_core5_v1",
-    "lastfm_full_core5_v1": "lastfm_full_core5_v1",
     "ml-1m": "movielens1m",
     "ml1m": "movielens1m",
     "movielens-1m": "movielens1m",
@@ -117,6 +97,16 @@ def normalize_dataset_name(name: str) -> str:
 def default_dataset_roots(repo_root: Path) -> list[Path]:
     root = Path(repo_root).resolve()
     return [(root / rel_path).resolve() for rel_path in DEFAULT_RELATIVE_DATA_ROOTS]
+
+
+def find_feature_metadata(dataset_dir: Path) -> Path | None:
+    """Return the first supported feature-metadata file in a dataset directory."""
+    root = Path(dataset_dir)
+    for filename in FEATURE_METADATA_FILENAMES:
+        candidate = root / filename
+        if candidate.is_file():
+            return candidate
+    return None
 
 
 def _resolve_override_path(data_path: str | None, repo_root: Path | None) -> Path | None:

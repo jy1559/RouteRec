@@ -12,9 +12,9 @@ Hydra versions. Create and inspect the environment with:
 ```bash
 bash scripts/create_env.sh
 micromamba activate routerec
-python -m pip install -e .
+python -m pip install -e ".[test]"
 python scripts/check_repo.py
-python -m unittest discover -s tests
+python -m pytest -q
 ```
 
 Record any deliberate dependency or accelerator change with the run. Do not
@@ -66,7 +66,7 @@ checkpoint. After the configuration has been frozen, evaluate a trusted local
 attempt exactly once:
 
 ```bash
-python scripts/test.py --attempt-dir outputs/runs/<attempt> --gpu 0
+python scripts/evaluate.py --attempt-dir outputs/runs/<attempt> --gpu 0
 ```
 
 Changing `--data-path` is only a host-path relocation; the data content must

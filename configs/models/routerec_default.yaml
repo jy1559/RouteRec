@@ -1,7 +1,6 @@
-# Compatibility config for scripts/train.py.  Campaign experiments use
-# configs/paper/** and scripts/experiment.py as the authoritative interface.
+# Stable defaults for the single-run training entry point.
 model: RouteRec
-feature_mode: full_v4
+feature_mode: full
 history_input_mode: session_only
 MAX_ITEM_LIST_LENGTH: 20
 embedding_size: 192

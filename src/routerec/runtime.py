@@ -10,13 +10,12 @@ _PATCHED = False
 
 
 _MODEL_SPECS: dict[str, tuple[str, str]] = {
-    "RouteRec": ("routerec.models.RouteRec", "RouteRec"),
-    "routerec": ("routerec.models.RouteRec", "RouteRec"),
-    "route_rec": ("routerec.models.RouteRec", "RouteRec"),
+    "RouteRec": ("routerec.models.routerec", "RouteRec"),
+    "routerec": ("routerec.models.routerec", "RouteRec"),
+    "route_rec": ("routerec.models.routerec", "RouteRec"),
     "BSARec": ("routerec.models.bsarec", "BSARec"),
     "DIFSR": ("routerec.models.difsr", "DIFSR"),
     "DuoRec": ("routerec.models.duorec", "DuoRec"),
-    "DuoRecRouteRec": ("routerec.models.duorec_routerec", "DuoRecRouteRec"),
     "FAME": ("routerec.models.fame", "FAME"),
     "FDSA": ("routerec.models.fdsa", "FDSA"),
     "FEARec": ("routerec.models.fearec", "FEARec"),

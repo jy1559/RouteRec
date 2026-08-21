@@ -2,7 +2,7 @@ run: {}
 
 data:
   root: Datasets/release
-  feature_mode: full_v4
+  feature_mode: full
   user_id_field: session_id
   item_id_field: item_id
   time_field: timestamp
@@ -29,7 +29,5 @@ evaluation:
 provenance:
   paper_contract_id: cikm26-routerec-a12-v1
   source_id: auto
-  identity_status: provisional
-  hypothesis: neutral paper-contract center
-  anchor_status: designed_center_not_result
-  notes: No metric or winning-configuration claim is encoded in this file.
+  identity_status: content_hash_required
+  notes: This protocol file encodes no metric or winning-configuration claim.

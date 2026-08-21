@@ -52,17 +52,11 @@ def main() -> int:
         help="Optional data root override. By default RouteRec searches Datasets/core5 and Datasets/release.",
     )
     parser.add_argument(
-        "--use-legacy-dataset-preset",
+        "--use-dataset-preset",
         action="store_true",
-        help="Opt in to provisional recovered centers; campaign HPO does not trust them.",
+        help="Apply the documented dataset-specific initialization preset.",
     )
-    parser.add_argument("--no-dataset-preset", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--no-save-model", action="store_true")
-    parser.add_argument(
-        "--validation-only",
-        action="store_true",
-        help="Compatibility flag; validation-only is already the safe default.",
-    )
     parser.add_argument(
         "--evaluate-test",
         action="store_true",
@@ -78,8 +72,6 @@ def main() -> int:
         help="Extra config override as key=value. JSON values are supported.",
     )
     args = parser.parse_args()
-    if args.evaluate_test and args.validation_only:
-        parser.error("--evaluate-test and --validation-only are mutually exclusive")
     if args.no_save_model and args.evaluate_test:
         parser.error("test evaluation requires a saved best-validation checkpoint")
 
@@ -95,7 +87,7 @@ def main() -> int:
         model=args.model,
         base_config_path=ROOT / "configs/models/routerec_default.yaml",
         dataset_presets_path=ROOT / "configs/models/routerec_dataset_presets.yaml",
-        use_dataset_preset=bool(args.use_legacy_dataset_preset and not args.no_dataset_preset),
+        use_dataset_preset=bool(args.use_dataset_preset),
         overrides=overrides,
         epochs=args.epochs,
         train_batch_size=args.train_batch_size,

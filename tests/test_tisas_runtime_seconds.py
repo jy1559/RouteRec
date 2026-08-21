@@ -34,7 +34,7 @@ def _fixture(root: Path, unit: str, timestamps: list[str]) -> DatasetLike:
     ) + "\n"
     for split in ("train", "valid", "test"):
         (directory / f"toy.{split}.inter").write_text(body, encoding="utf-8")
-    (directory / "feature_meta_v3.json").write_text(
+    (directory / "feature_metadata.json").write_text(
         '{"timestamp_unit":"' + unit + '"}', encoding="utf-8"
     )
     return DatasetLike(root)

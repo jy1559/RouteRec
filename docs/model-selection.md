@@ -18,9 +18,9 @@ Test is disabled during screen, HPO, and promotion. A test result may be produce
 
 ## Staged tuning
 
-Recovered settings are center hypotheses because the exact final configurations may have been lost or may belong to a different protocol variant.
+Dataset presets are initialization points, not evidence of a reported score.
 
-The camera-ready search order is:
+The release search order is:
 
 1. verify data/model/evaluation identity;
 2. paired LR/weight-decay screen at seed 42 with fixed structure;
@@ -34,11 +34,13 @@ Search breadth, budgets, seeds, and promotion rules must be declared before insp
 Every published configuration should record its validation-only search space,
 budget, selected checkpoint, and seed before test evaluation.
 
-## Baselines are gated
+## Baseline comparisons
 
-The submitted comparison set is SASRec, GRU4Rec, TiSASRec, FEARec, DuoRec, BSARec, FAME, DIF-SR, FDSA, and RouteRec. The current registry is useful for code recovery, but baseline execution is not yet certified for camera-ready results.
+The comparison set is SASRec, GRU4Rec, TiSASRec, FEARec, DuoRec, BSARec,
+FAME, DIFSR, FDSA, and RouteRec. Importability alone is not evidence that a
+baseline result follows the paper protocol.
 
-Before a baseline enters a paper campaign, verify:
+Before reporting a baseline, verify:
 
 - the intended implementation and model-specific config path;
 - the identical frozen-session and train-seen evaluation protocol;

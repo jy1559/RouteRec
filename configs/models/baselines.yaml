@@ -1,6 +1,5 @@
-# Historical starting points only. These flat presets are not compiled by the
-# strict camera-ready campaign runner; baseline execution remains gated until
-# each model receives a complete, schema-checked paper config.
+# Reference initialization presets. Reported results require a complete
+# dataset-specific resolved config and the common evaluation contract.
 SASRec:
   learning_rate: 7.0e-4
   MAX_ITEM_LIST_LENGTH: 20

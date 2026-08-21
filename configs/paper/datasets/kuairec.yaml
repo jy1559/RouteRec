@@ -24,6 +24,6 @@ model:
     stage_feature_dropout_prob: {macro: 0.03, mid: 0.03, micro: 0.03}
 
 provenance:
-  hypothesis: recovered KuaiRec capacity center to be challenged after optimizer promotion
-  anchor_status: recovered_center_hypothesis
-  data_note: Current release is sampled relative to the paper appendix; promotion requires an explicit data-protocol decision.
+  dataset_id: kuairec_adaptive_core5_v1
+  preset_role: initialization_only
+  data_note: Use the validated adaptive-watch core5 identity and its recorded content hash.

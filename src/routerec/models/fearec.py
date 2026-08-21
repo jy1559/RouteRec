@@ -2,6 +2,8 @@
 # @Time    : 2023/10/27
 # @Author  : Kesha Ou
 # @Email   : keishaou@gmail.com
+# SPDX-FileCopyrightText: 2020 RUCAIBox
+# SPDX-License-Identifier: MIT
 
 r"""
 FEARec

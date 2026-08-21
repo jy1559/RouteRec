@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2020 RUCAIBox
+# SPDX-License-Identifier: MIT
+
 """
 FDSA - Feature-level Deeper Self-Attention Network for Sequential Recommendation.
 
@@ -36,7 +39,7 @@ def _resolve_selected_features(config, dataset) -> List[str]:
 
 
 class FDSA(SequentialRecommender):
-    """FDSA model with safe feature fallback for feature_added_v4 pipelines."""
+    """FDSA model with a safe feature fallback for RouteRec datasets."""
 
     def __init__(self, config, dataset):
         super().__init__(config, dataset)

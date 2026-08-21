@@ -1,7 +1,8 @@
 """
 BSARec - Beyond Self-Attention based Sequential Recommendation
 
-Implements BSARec model that augments Transformer encoder with frequency domain analysis.
+Project-specific RecBole implementation of the BSARec architecture. It augments
+the Transformer encoder with frequency-domain analysis.
 Uses Fourier transform to capture high-frequency signals reflecting short-term user interests.
 
 Paper: "An Attentive Inductive Bias for Sequential Recommendation beyond the Self-Attention"

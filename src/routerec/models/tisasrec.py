@@ -1,7 +1,9 @@
 """TiSASRec implementation for RecBole-style sequential recommendation.
 
-Adapted from the official TiSASRec TensorFlow implementation and ported to
-PyTorch/RecBole interfaces used in this repository.
+This project-specific PyTorch implementation follows the TiSASRec architecture
+and exposes the RecBole interfaces used in this repository. The official
+TensorFlow repository is cited as an algorithmic reference; its source files
+are not vendored here.
 """
 
 import math
@@ -181,7 +183,7 @@ class TiSASRec(SequentialRecommender):
         time_seq = time_seq.to(item_seq.device)
         if time_seq.dim() > 2:
             time_seq = time_seq.squeeze(-1)
-        # The camera-ready data contract stores session-relative elapsed
+        # The core5 data contract stores session-relative elapsed
         # seconds.  Keep float64 here so sub-second KuaiRec intervals and long
         # sessions do not lose precision before the interval rescaling.
         return time_seq.to(torch.float64)
