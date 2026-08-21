@@ -17,18 +17,18 @@ from routerec.model_registry import recommended_routerec_config
 
 class DatasetResolutionTest(unittest.TestCase):
     def test_normalize_dataset_aliases(self) -> None:
-        self.assertEqual(normalize_dataset_name("ml-1m"), "movielens1m")
-        self.assertEqual(normalize_dataset_name("kuairec"), "KuaiRecLargeStrictPosV2_0.2")
-        self.assertEqual(normalize_dataset_name("retailrocket"), "retail_rocket")
-        self.assertEqual(normalize_dataset_name("amazon_beauty"), "beauty")
+        self.assertEqual(normalize_dataset_name("ml-1m"), "movielens1m_core5_v1")
+        self.assertEqual(normalize_dataset_name("kuairec"), "kuairec_adaptive_core5_v1")
+        self.assertEqual(normalize_dataset_name("retailrocket"), "retail_rocket_core5_v1")
+        self.assertEqual(normalize_dataset_name("amazon_beauty"), "beauty_core5_v1")
         self.assertEqual(normalize_dataset_name("beauty_core5_v1"), "beauty_core5_v1")
         self.assertEqual(
             normalize_dataset_name("kuairec_adaptive_core5_v1"),
             "kuairec_adaptive_core5_v1",
         )
         # Bare aliases must never drift to a different prepared identity.
-        self.assertEqual(normalize_dataset_name("kuairec"), "KuaiRecLargeStrictPosV2_0.2")
-        self.assertEqual(normalize_dataset_name("lastfm"), "lastfm0.03")
+        self.assertEqual(normalize_dataset_name("kuairec"), "kuairec_adaptive_core5_v1")
+        self.assertEqual(normalize_dataset_name("lastfm"), "lastfm_recovered_core5_v1")
 
     def test_core5_identities_receive_explicit_initialization_presets(self) -> None:
         kuai = recommended_routerec_config("kuairec_adaptive_core5_v1")
@@ -65,9 +65,11 @@ class DatasetResolutionTest(unittest.TestCase):
     def test_auto_resolution_prefers_core5(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             repo_root = Path(tmp_dir)
-            dataset_dir = repo_root / "Datasets/core5/movielens1m"
+            dataset_dir = repo_root / "Datasets/core5/movielens1m_core5_v1"
             dataset_dir.mkdir(parents=True)
-            (dataset_dir / "movielens1m.train.inter").write_text("header\n", encoding="utf-8")
+            (dataset_dir / "movielens1m_core5_v1.train.inter").write_text(
+                "header\n", encoding="utf-8"
+            )
 
             resolved = resolve_dataset_runtime(
                 dataset="ml-1m",
@@ -76,24 +78,22 @@ class DatasetResolutionTest(unittest.TestCase):
                 require_existing=True,
             )
 
-            self.assertEqual(resolved.dataset_name, "movielens1m")
+            self.assertEqual(resolved.dataset_name, "movielens1m_core5_v1")
             self.assertEqual(resolved.dataset_dir, dataset_dir)
             self.assertEqual(resolved.data_path, str(dataset_dir.parent))
             self.assertTrue(resolved.auto_discovered)
 
-    def test_default_roots_prefer_core5_then_release(self) -> None:
+    def test_default_root_is_experiment_facing_core5(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             repo_root = Path(tmp_dir)
             roots = default_dataset_roots(repo_root)
-            self.assertEqual(roots[0], (repo_root / "Datasets/core5").resolve())
-            self.assertEqual(roots[1], (repo_root / "Datasets/release").resolve())
+            self.assertEqual(roots, [(repo_root / "Datasets/core5").resolve()])
 
-            core5_dir = repo_root / "Datasets/core5/movielens1m"
-            release_dir = repo_root / "Datasets/release/movielens1m"
+            core5_dir = repo_root / "Datasets/core5/movielens1m_core5_v1"
             core5_dir.mkdir(parents=True)
-            release_dir.mkdir(parents=True)
-            (core5_dir / "movielens1m.train.inter").write_text("header\n", encoding="utf-8")
-            (release_dir / "movielens1m.train.inter").write_text("header\n", encoding="utf-8")
+            (core5_dir / "movielens1m_core5_v1.train.inter").write_text(
+                "header\n", encoding="utf-8"
+            )
 
             resolved = resolve_dataset_runtime(
                 dataset="ml-1m",
@@ -107,9 +107,11 @@ class DatasetResolutionTest(unittest.TestCase):
 
     def test_direct_dataset_path_normalizes_to_parent_root(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            dataset_dir = Path(tmp_dir) / "movielens1m"
+            dataset_dir = Path(tmp_dir) / "movielens1m_core5_v1"
             dataset_dir.mkdir(parents=True)
-            (dataset_dir / "movielens1m.item").write_text("item_id\n", encoding="utf-8")
+            (dataset_dir / "movielens1m_core5_v1.item").write_text(
+                "item_id\n", encoding="utf-8"
+            )
 
             resolved = resolve_dataset_runtime(
                 dataset="movielens1m",
@@ -132,17 +134,19 @@ class DatasetResolutionTest(unittest.TestCase):
                     require_existing=True,
                 )
 
-            self.assertIn("normalized to 'lastfm0.03'", str(ctx.exception))
+            self.assertIn("normalized to 'lastfm_recovered_core5_v1'", str(ctx.exception))
 
     def test_infer_recbole_dataset_config_from_header(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            dataset_dir = Path(tmp_dir) / "movielens1m"
+            dataset_dir = Path(tmp_dir) / "movielens1m_core5_v1"
             dataset_dir.mkdir(parents=True)
             header = "session_id:token\titem_id:token\ttimestamp:float\tuser_id:token\tfeat_a:float\n"
             row = "s1\ti1\t1.0\tu1\t0.1\n"
             for split_name in ("train", "valid", "test"):
-                (dataset_dir / f"movielens1m.{split_name}.inter").write_text(header + row, encoding="utf-8")
-            (dataset_dir / "movielens1m.session_split_summary.json").write_text(
+                (dataset_dir / f"movielens1m_core5_v1.{split_name}.inter").write_text(
+                    header + row, encoding="utf-8"
+                )
+            (dataset_dir / "movielens1m_core5_v1.session_split_summary.json").write_text(
                 '{"ratios": {"train": 0.7, "valid": 0.15, "test": 0.15}}',
                 encoding="utf-8",
             )

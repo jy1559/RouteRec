@@ -26,7 +26,7 @@ class RepoLayoutTest(unittest.TestCase):
     def test_routerec_default_is_routerec(self) -> None:
         self.assertEqual(ROUTEREC_DEFAULT["model"], "RouteRec")
         self.assertIn("SASRec", PAPER_BASELINES)
-        self.assertIn("lastfm0.03", DATASET_LR_INTERVALS)
+        self.assertIn("lastfm_recovered_core5_v1", DATASET_LR_INTERVALS)
 
     def test_public_cli_scripts_exist(self) -> None:
         self.assertTrue((ROOT / "scripts/train.py").is_file())
@@ -46,7 +46,10 @@ class RepoLayoutTest(unittest.TestCase):
         preset = recommended_routerec_config("ml-1m")
         self.assertEqual(generic["embedding_size"], 192)
         self.assertEqual(preset["embedding_size"], 128)
-        self.assertEqual(preset["learning_rate_range"], list(DATASET_LR_INTERVALS["movielens1m"]))
+        self.assertEqual(
+            preset["learning_rate_range"],
+            list(DATASET_LR_INTERVALS["movielens1m_core5_v1"]),
+        )
 
 
 if __name__ == "__main__":

@@ -46,7 +46,7 @@ evaluated only after a configuration and best-validation checkpoint are frozen.
 
 ## Core-filtered rebuild
 
-The public data pipeline provides three stages:
+The public data pipeline provides four stages:
 
 1. `build_core5_splits.py` builds a four-column,
    sessionized core-filtered release.

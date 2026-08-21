@@ -10,20 +10,11 @@ from typing import Any
 
 DEFAULT_RELATIVE_DATA_ROOTS = (
     Path("Datasets/core5"),
-    Path("Datasets/release"),
 )
 
-# New releases use the stable name. The second entry keeps already prepared
-# prepared data readable without exposing a versioned name elsewhere.
-FEATURE_METADATA_FILENAMES = ("feature_metadata.json", "feature_meta_v3.json")
+FEATURE_METADATA_FILENAME = "feature_metadata.json"
 
 CANONICAL_DATASETS = (
-    "beauty",
-    "foursquare",
-    "KuaiRecLargeStrictPosV2_0.2",
-    "lastfm0.03",
-    "movielens1m",
-    "retail_rocket",
     "beauty_core5_v1",
     "foursquare_core5_v1",
     "movielens1m_core5_v1",
@@ -33,29 +24,24 @@ CANONICAL_DATASETS = (
 )
 
 _ALIAS_TO_CANONICAL = {
-    # The paper dataset is ``beauty`` (33,488 prepared interactions).  A
-    # different, much smaller ``amazon_beauty`` directory is present in the
-    # historical archive.  Treating both as canonical silently changed the
-    # benchmark depending on the spelling used at the CLI.
-    "amazon beauty": "beauty",
-    "amazon-beauty": "beauty",
-    "amazon_beauty": "beauty",
-    "beauty": "beauty",
-    "foursquare": "foursquare",
-    "kuairec": "KuaiRecLargeStrictPosV2_0.2",
-    "kuairec20": "KuaiRecLargeStrictPosV2_0.2",
-    "KuaiRecLargeStrictPosV2_0.2": "KuaiRecLargeStrictPosV2_0.2",
-    "lastfm": "lastfm0.03",
-    "lastfm0.03": "lastfm0.03",
-    "ml-1m": "movielens1m",
-    "ml1m": "movielens1m",
-    "movielens-1m": "movielens1m",
-    "movielens1m": "movielens1m",
-    "movie lens 1m": "movielens1m",
-    "retail rocket": "retail_rocket",
-    "retail-rocket": "retail_rocket",
-    "retail_rocket": "retail_rocket",
-    "retailrocket": "retail_rocket",
+    # Human-friendly aliases resolve to one explicit paper identity so CLI
+    # spelling cannot silently select a different prepared benchmark.
+    "amazon beauty": "beauty_core5_v1",
+    "amazon-beauty": "beauty_core5_v1",
+    "amazon_beauty": "beauty_core5_v1",
+    "beauty": "beauty_core5_v1",
+    "foursquare": "foursquare_core5_v1",
+    "kuairec": "kuairec_adaptive_core5_v1",
+    "lastfm": "lastfm_recovered_core5_v1",
+    "ml-1m": "movielens1m_core5_v1",
+    "ml1m": "movielens1m_core5_v1",
+    "movielens-1m": "movielens1m_core5_v1",
+    "movielens1m": "movielens1m_core5_v1",
+    "movie lens 1m": "movielens1m_core5_v1",
+    "retail rocket": "retail_rocket_core5_v1",
+    "retail-rocket": "retail_rocket_core5_v1",
+    "retail_rocket": "retail_rocket_core5_v1",
+    "retailrocket": "retail_rocket_core5_v1",
 }
 
 
@@ -102,11 +88,8 @@ def default_dataset_roots(repo_root: Path) -> list[Path]:
 def find_feature_metadata(dataset_dir: Path) -> Path | None:
     """Return the first supported feature-metadata file in a dataset directory."""
     root = Path(dataset_dir)
-    for filename in FEATURE_METADATA_FILENAMES:
-        candidate = root / filename
-        if candidate.is_file():
-            return candidate
-    return None
+    candidate = root / FEATURE_METADATA_FILENAME
+    return candidate if candidate.is_file() else None
 
 
 def _resolve_override_path(data_path: str | None, repo_root: Path | None) -> Path | None:
@@ -237,7 +220,6 @@ def _parse_typed_header(path: Path) -> list[str]:
 def _split_summary_path(dataset_dir: Path, dataset_name: str) -> Path | None:
     candidates = [
         dataset_dir / f"{dataset_name}.session_split_summary.json",
-        dataset_dir / f"{dataset_name}.v4_split_summary.json",
         dataset_dir / f"{dataset_name}.split_summary.json",
     ]
     for candidate in candidates:

@@ -37,7 +37,6 @@ _PATCH_VERSION = 6
 _TARGET_MID_BROADCAST_FLAG = "routerec_causal_mid_target_broadcast"
 _TARGET_MID_CONTRACTS = {
     "core5-features-leakage-safe-v1",
-    "full-v5-leakage-correct-20260812",
 }
 
 # These are the models whose interaction access has been audited in the public
@@ -132,8 +131,8 @@ def _broadcast_target_mid_history(
 ) -> Any:
     """Broadcast each target-row mid cue over valid history slots.
 
-    ``history_values[target_idx]`` is safe only under the guarded full-v5
-    strict-prefix contract.  Padding remains exactly zero.  The helper works
+    ``history_values[target_idx]`` is safe only under the guarded strict-prefix
+    feature contract. Padding remains exactly zero. The helper works
     for scalar fields and preserves possible trailing value dimensions.
     """
 

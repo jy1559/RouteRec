@@ -175,7 +175,7 @@ def test_end_to_end_stage_validate_atomic_publish_and_refuse_overwrite(tmp_path:
     assert report["combined_exact_ordered_split_union"] is True
     assert report["valid_test_unseen_target_count"] == 0
     summary = json.loads((final / "synthetic_core5_v1.basic_summary.json").read_text())
-    assert summary["source"]["stats"]["old_feature_columns_ignored"] is True
+    assert summary["source"]["stats"]["non_base_feature_columns_ignored"] is True
     assert summary["row_ledger"]["balanced"] is True
     with pytest.raises(FileExistsError):
         builder.publish_one(

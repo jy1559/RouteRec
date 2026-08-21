@@ -1,7 +1,7 @@
 run: {}
 
 data:
-  root: Datasets/release
+  root: Datasets/core5
   feature_mode: full
   user_id_field: session_id
   item_id_field: item_id

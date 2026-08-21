@@ -118,22 +118,14 @@ SPECS: dict[str, DatasetSpec] = {
     "kuairec_adaptive_core5_v1": DatasetSpec(
         "kuairec_adaptive_core5_v1", "kuairec_adaptive", "s",
         4_312_463, 209_312, 8_966,
-        raw_interactions=(
-            "Datasets/recovery/full_sources_20260812/raw/KuaiRec/data/big_matrix.csv"
-        ),
-        raw_item_metadata=(
-            "Datasets/recovery/full_sources_20260812/raw/KuaiRec/data/item_categories.csv"
-        ),
+        raw_interactions="Datasets/release/kuairec/big_matrix.csv",
+        raw_item_metadata="Datasets/release/kuairec/item_categories.csv",
     ),
     "lastfm_recovered_core5_v1": DatasetSpec(
         "lastfm_recovered_core5_v1", "recovered_resessionize", "ms",
         15_756_683, 603_048, 546_008, 26.128,
-        source_inter=(
-            "Datasets/recovery/full_sources_20260812/processed/basic/lastfm/lastfm.inter"
-        ),
-        source_item=(
-            "Datasets/recovery/full_sources_20260812/processed/basic/lastfm/lastfm.item"
-        ),
+        source_inter="Datasets/release/lastfm/lastfm.inter",
+        source_item="Datasets/release/lastfm/lastfm.item",
     ),
 }
 
@@ -355,7 +347,7 @@ def load_preserved_sessions(path: Path) -> tuple[list[Session], dict[str, object
         "sessions": len(sessions),
         "users": len(set(user_by_sid.values())),
         "source_session_ids_preserved": True,
-        "old_feature_columns_ignored": True,
+        "non_base_feature_columns_ignored": True,
     }
 
 
@@ -529,47 +521,6 @@ def temporal_parent_split(
         "train": ordered[:train_count],
         "valid": ordered[train_count : train_count + valid_count],
         "test": ordered[train_count + valid_count :],
-    }
-
-
-def historical_v4_projection(sessions: Sequence[Session]) -> dict[str, object]:
-    """Reproduce the historical KuaiRec v4 tail projection as evidence only.
-
-    The earliest 70% of parents are train.  For every tail parent, the final
-    target is retained even when unseen, while train-unseen non-target rows are
-    removed.  This intentionally differs from the strict runtime tail policy.
-    """
-
-    parents = temporal_parent_split(sessions, train_ratio=0.7)
-    train_items = {
-        event.item for session in parents["train"] for event in session.events
-    }
-    observed_items: set[str] = set()
-    rows = 0
-    tail_non_target_unseen_removed = 0
-    for session in parents["train"]:
-        rows += len(session.events)
-        observed_items.update(event.item for event in session.events)
-    for split in ("valid", "test"):
-        for session in parents[split]:
-            target_index = len(session.events) - 1
-            for index, event in enumerate(session.events):
-                if index != target_index and event.item not in train_items:
-                    tail_non_target_unseen_removed += 1
-                    continue
-                rows += 1
-                observed_items.add(event.item)
-    sessions_count = sum(len(parents[split]) for split in SPLITS)
-    return {
-        "evidence_only_not_runtime": True,
-        "policy": "train unchanged; tail original target retained; other train-unseen rows removed",
-        "rows": rows,
-        "sessions": sessions_count,
-        "observed_items": len(observed_items),
-        "mean_session_length": rows / sessions_count,
-        "train_rows": sum(len(session.events) for session in parents["train"]),
-        "train_items": len(train_items),
-        "tail_non_target_unseen_rows_removed": tail_non_target_unseen_removed,
     }
 
 
@@ -959,26 +910,6 @@ def build_staged_dataset(
             f"{pre_split_stats['mean_session_length']} != {spec.expected_mean_length}"
         )
 
-    projection: dict[str, object] | None = None
-    if spec.source_kind == "kuairec_adaptive":
-        projection = historical_v4_projection(pre_split)
-        projection_expected = {
-            "rows": 3_862_479,
-            "sessions": 209_312,
-            "observed_items": 8_572,
-        }
-        projection_actual = {
-            key: int(projection[key]) for key in projection_expected
-        }
-        if projection_actual != projection_expected:
-            raise RuntimeError(
-                "KuaiRec historical-v4 projection witness failed: "
-                f"actual={projection_actual}, expected={projection_expected}"
-            )
-        projection["expected_counts"] = projection_expected
-        projection["expected_counts_pass"] = True
-        projection["handoff_mean_18_452_is_approximate"] = True
-
     parents = temporal_parent_split(pre_split, train_ratio=0.7)
     all_chunks = {
         split: balanced_chunks(
@@ -1067,7 +998,7 @@ def build_staged_dataset(
         "source_identity_note": (
             "recovered full basic approximation; source split/session ignored; not raw exact"
             if spec.source_kind == "recovered_resessionize"
-            else "existing session artifact membership; old feature columns ignored"
+            else "existing session artifact membership; non-base feature columns ignored"
             if spec.source_kind == "preserve_session"
             else "raw KuaiRec adaptive-watch membership"
         ),
@@ -1096,7 +1027,6 @@ def build_staged_dataset(
             "expected_pre_split": expected,
             "pre_split": pre_split_stats,
             "expected_gate_pass": True,
-            "historical_v4_projection": projection,
         },
         "parent_split": {
             "parents": {split: len(parents[split]) for split in SPLITS},

@@ -23,15 +23,9 @@ from typing import Iterable, Sequence
 SPLITS = ("train", "valid", "test")
 BASIC_CONTRACT = "sessionized-core5-strict-split-v1"
 FEATURE_CONTRACT = "core5-features-leakage-safe-v1"
-FEATURE_CONTRACTS = {
-    FEATURE_CONTRACT,
-    "full-v5-leakage-correct-20260812",
-}
+FEATURE_CONTRACTS = {FEATURE_CONTRACT}
 METADATA_CONTRACT = "core5-location-independent-metadata-v1"
-METADATA_CONTRACTS = {
-    METADATA_CONTRACT,
-    "full-v5-location-independent-metadata-v1",
-}
+METADATA_CONTRACTS = {METADATA_CONTRACT}
 BASE_HEADER = (
     "session_id:token",
     "item_id:token",
@@ -343,10 +337,7 @@ def validate_metadata(
     errors: ErrorSink,
 ) -> None:
     require_equal(errors, basic_summary.get("contract"), BASIC_CONTRACT, "basic contract")
-    is_core5_parent = (
-        basic_summary.get("core5_contract", basic_summary.get("camera_ready_contract"))
-        in {"core5-parent-strict-v1", "camera-ready-core5-parent-strict-v1"}
-    )
+    is_core5_parent = basic_summary.get("core5_contract") == "core5-parent-strict-v1"
     if is_core5_parent:
         if basic_summary.get("status") not in (
             "complete",
@@ -522,11 +513,7 @@ def validate_release(
         "combined": feature_dir / f"{target_dataset}.inter",
         **{split: feature_dir / f"{target_dataset}.{split}.inter" for split in SPLITS},
         "item": feature_dir / f"{target_dataset}.item",
-        "meta": (
-            feature_dir / "feature_metadata.json"
-            if (feature_dir / "feature_metadata.json").is_file()
-            else feature_dir / "feature_meta_v3.json"
-        ),
+        "meta": feature_dir / "feature_metadata.json",
         "build": feature_dir / f"{target_dataset}.build_summary.json",
         "split_summary": feature_dir / f"{target_dataset}.session_split_summary.json",
     }
@@ -599,10 +586,7 @@ def validate_release(
     actual_min = min(merged_lengths.values(), default=0)
     actual_max = max(merged_lengths.values(), default=0)
     basic_summary = load_json(basic_paths["summary"], errors)
-    is_core5_parent = (
-        basic_summary.get("core5_contract", basic_summary.get("camera_ready_contract"))
-        in {"core5-parent-strict-v1", "camera-ready-core5-parent-strict-v1"}
-    )
+    is_core5_parent = basic_summary.get("core5_contract") == "core5-parent-strict-v1"
     parameters = basic_summary.get("parameters")
     if not isinstance(parameters, dict):
         errors.add("basic summary is missing parameters")

@@ -44,12 +44,12 @@ from typing import Dict, Iterable, List, Tuple
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_BASIC_ROOT = REPO_ROOT / "Datasets" / "processed" / "basic"
-DEFAULT_OUT_ROOT   = REPO_ROOT / "Datasets" / "processed" / "final_dataset"
+DEFAULT_BASIC_ROOT = REPO_ROOT / "Datasets" / "core5_basic"
+DEFAULT_OUT_ROOT = REPO_ROOT / "Datasets" / "core5"
 
 
 # ---------------------------------------------------------------------------
-# Feature / normalization definitions (identical to build_beauty_feature_v3)
+# Feature and normalization definitions
 # ---------------------------------------------------------------------------
 
 FAMILIES = {
@@ -144,8 +144,8 @@ def parse_args() -> argparse.Namespace:
         choices=("drop_non_target", "keep", "precleaned_frozen"),
         default="drop_non_target",
         help=(
-            "Apply the old v4 unseen-context rule before feature computation. "
-            "The target row is always retained."
+            "Control how train-unseen context rows are handled before feature "
+            "computation. The target row is always retained."
         ),
     )
     p.add_argument(

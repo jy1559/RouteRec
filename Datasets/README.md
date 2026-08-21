@@ -16,6 +16,26 @@ The six paper dataset identities are Beauty, Foursquare, KuaiRec, LastFM,
 MovieLens-1M, and Retail Rocket. Acquisition and redistribution terms differ by
 dataset, so raw or prepared files are not bundled here.
 
+Place acquired source files in the following stable input layout before
+running the builders:
+
+```text
+Datasets/release/
+  beauty/beauty.inter + beauty.item
+  foursquare/foursquare.inter + foursquare.item
+  movielens1m/movielens1m.inter + movielens1m.item
+  retail_rocket/retail_rocket.inter + retail_rocket.item
+  kuairec/big_matrix.csv + item_categories.csv
+  lastfm/lastfm.inter + lastfm.item
+```
+
+The first four interaction files must already contain the typed base columns
+`session_id`, `item_id`, `timestamp`, and `user_id`. The KuaiRec CSV files use
+the official `big_matrix` and item-category schemas. The LastFM interaction
+table uses the same four typed base columns and is re-sessionized by the public
+builder. Keep each dataset's acquisition record and license with the local
+source; those files remain untracked.
+
 To rebuild the core-filtered releases, inspect the required inputs and options:
 
 ```bash

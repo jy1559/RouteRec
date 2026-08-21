@@ -78,7 +78,10 @@ def main() -> int:
             print(f"- {item}")
         return 1
 
-    print("\nAll six frozen release datasets are available. Run check_protocol.py before performance experiments.")
+    print(
+        "\nAll six frozen core5 datasets are available. "
+        "Review docs/data-contract.md and the resolved configuration before performance experiments."
+    )
     return 0
 
 

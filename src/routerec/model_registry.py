@@ -31,26 +31,13 @@ LOCAL_BASELINE_IMPLEMENTATIONS = (
 )
 
 DATASET_LR_INTERVALS = {
-    "beauty": (1.5e-4, 2.0e-3),
-    "foursquare": (1.5e-4, 2.2e-3),
-    "KuaiRecLargeStrictPosV2_0.2": (3.0e-4, 5.0e-3),
-    "lastfm0.03": (8.0e-5, 1.2e-3),
-    "movielens1m": (1.5e-4, 2.2e-3),
-    "retail_rocket": (1.5e-4, 2.2e-3),
+    "beauty_core5_v1": (1.5e-4, 2.0e-3),
+    "foursquare_core5_v1": (1.5e-4, 2.2e-3),
+    "kuairec_adaptive_core5_v1": (3.0e-4, 5.0e-3),
+    "lastfm_recovered_core5_v1": (8.0e-5, 1.2e-3),
+    "movielens1m_core5_v1": (1.5e-4, 2.2e-3),
+    "retail_rocket_core5_v1": (1.5e-4, 2.2e-3),
 }
-
-# Core5 identities deliberately remain distinct. These ranges are
-# weak cross-identity initialization priors, not transferred results.
-DATASET_LR_INTERVALS.update(
-    {
-        "beauty_core5_v1": DATASET_LR_INTERVALS["beauty"],
-        "foursquare_core5_v1": DATASET_LR_INTERVALS["foursquare"],
-        "movielens1m_core5_v1": DATASET_LR_INTERVALS["movielens1m"],
-        "retail_rocket_core5_v1": DATASET_LR_INTERVALS["retail_rocket"],
-        "kuairec_adaptive_core5_v1": DATASET_LR_INTERVALS["KuaiRecLargeStrictPosV2_0.2"],
-        "lastfm_recovered_core5_v1": DATASET_LR_INTERVALS["lastfm0.03"],
-    }
-)
 
 ROUTEREC_DEFAULT = {
     "model": "RouteRec",
@@ -94,7 +81,7 @@ ROUTEREC_DEFAULT = {
 }
 
 ROUTEREC_DATASET_PRESETS = {
-    "KuaiRecLargeStrictPosV2_0.2": {
+    "kuairec_adaptive_core5_v1": {
         "MAX_ITEM_LIST_LENGTH": 20,
         "embedding_size": 224,
         "hidden_size": 224,
@@ -110,7 +97,7 @@ ROUTEREC_DATASET_PRESETS = {
         "z_loss_lambda": 1.0e-4,
         "stage_feature_dropout_prob": 0.03,
     },
-    "beauty": {
+    "beauty_core5_v1": {
         "MAX_ITEM_LIST_LENGTH": 20,
         "embedding_size": 192,
         "hidden_size": 192,
@@ -126,7 +113,7 @@ ROUTEREC_DATASET_PRESETS = {
         "z_loss_lambda": 2.0e-4,
         "stage_feature_dropout_prob": 0.10,
     },
-    "foursquare": {
+    "foursquare_core5_v1": {
         "MAX_ITEM_LIST_LENGTH": 30,
         "embedding_size": 160,
         "hidden_size": 160,
@@ -142,7 +129,7 @@ ROUTEREC_DATASET_PRESETS = {
         "z_loss_lambda": 2.0e-4,
         "stage_feature_dropout_prob": 0.10,
     },
-    "lastfm0.03": {
+    "lastfm_recovered_core5_v1": {
         "MAX_ITEM_LIST_LENGTH": 30,
         "embedding_size": 224,
         "hidden_size": 224,
@@ -158,7 +145,7 @@ ROUTEREC_DATASET_PRESETS = {
         "z_loss_lambda": 1.0e-4,
         "stage_feature_dropout_prob": 0.03,
     },
-    "movielens1m": {
+    "movielens1m_core5_v1": {
         "MAX_ITEM_LIST_LENGTH": 50,
         "embedding_size": 128,
         "hidden_size": 128,
@@ -174,7 +161,7 @@ ROUTEREC_DATASET_PRESETS = {
         "z_loss_lambda": 4.0e-4,
         "stage_feature_dropout_prob": 0.03,
     },
-    "retail_rocket": {
+    "retail_rocket_core5_v1": {
         "MAX_ITEM_LIST_LENGTH": 20,
         "embedding_size": 192,
         "hidden_size": 192,
@@ -191,24 +178,6 @@ ROUTEREC_DATASET_PRESETS = {
         "stage_feature_dropout_prob": 0.03,
     },
 }
-
-# Configuration-only weak priors for the six rebuilt identities.  Copying
-# keeps provenance names distinct and freezes the required history lengths;
-# no old metric, checkpoint, rank, split, or data identity is imported.
-_CORE5_PRIOR_SOURCE_AND_HISTORY = {
-    "beauty_core5_v1": ("beauty", 20),
-    "foursquare_core5_v1": ("foursquare", 30),
-    "movielens1m_core5_v1": ("movielens1m", 50),
-    "retail_rocket_core5_v1": ("retail_rocket", 20),
-    "kuairec_adaptive_core5_v1": ("KuaiRecLargeStrictPosV2_0.2", 20),
-    "lastfm_recovered_core5_v1": ("lastfm0.03", 30),
-}
-for _target_dataset, (_prior_dataset, _history_length) in (
-    _CORE5_PRIOR_SOURCE_AND_HISTORY.items()
-):
-    _preset = deepcopy(ROUTEREC_DATASET_PRESETS[_prior_dataset])
-    _preset["MAX_ITEM_LIST_LENGTH"] = _history_length
-    ROUTEREC_DATASET_PRESETS[_target_dataset] = _preset
 
 BASELINE_DEFAULTS = {
     "SASRec": {"learning_rate": 7.0e-4, "MAX_ITEM_LIST_LENGTH": 20, "hidden_size": 128, "n_layers": 2, "n_heads": 2, "hidden_dropout_prob": 0.15, "attn_dropout_prob": 0.10},

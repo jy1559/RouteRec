@@ -19,10 +19,7 @@ from typing import Iterable, Iterator, Mapping, Sequence
 SPLITS = ("train", "valid", "test")
 BASE_NAMES = ("session_id", "item_id", "timestamp", "user_id")
 BASIC_CONTRACT = "sessionized-core5-strict-split-v1"
-CORE5_PARENT_CONTRACTS = {
-    "core5-parent-strict-v1",
-    "camera-ready-core5-parent-strict-v1",
-}
+CORE5_PARENT_CONTRACT = "core5-parent-strict-v1"
 
 
 def plain(value: str) -> str:
@@ -374,11 +371,7 @@ def validate(args: argparse.Namespace) -> dict[str, object]:
         errors.append(f"invalid basic summary: {exc}")
     if summary.get("contract") != BASIC_CONTRACT:
         errors.append("basic contract mismatch")
-    declared_core5_contract = summary.get(
-        "core5_contract",
-        summary.get("camera_ready_contract"),
-    )
-    if declared_core5_contract not in CORE5_PARENT_CONTRACTS:
+    if summary.get("core5_contract") != CORE5_PARENT_CONTRACT:
         errors.append("core5 parent contract mismatch")
     if summary.get("target_dataset") != args.dataset:
         errors.append("summary target dataset mismatch")
@@ -467,24 +460,6 @@ def validate(args: argparse.Namespace) -> dict[str, object]:
         required_paths["lineage"], scans={split: scans[split] for split in SPLITS}, summary=summary
     )
     errors.extend(lineage_errors)
-    if summary.get("source_kind") == "kuairec_adaptive":
-        projection = _as_dict(membership.get("historical_v4_projection"))
-        projection_actual = {
-            "rows": projection.get("rows"),
-            "sessions": projection.get("sessions"),
-            "observed_items": projection.get("observed_items"),
-        }
-        projection_expected = {
-            "rows": 3_862_479,
-            "sessions": 209_312,
-            "observed_items": 8_572,
-        }
-        if projection_actual != projection_expected:
-            errors.append(
-                f"historical-v4 evidence mismatch: {projection_actual} != {projection_expected}"
-            )
-        if projection.get("evidence_only_not_runtime") is not True:
-            errors.append("historical-v4 projection is not marked evidence-only")
     output = _as_dict(summary.get("output"))
     if _as_dict(output.get("rows")) != {split: scans[split].rows for split in SPLITS}:
         errors.append("summary split row counts mismatch")
